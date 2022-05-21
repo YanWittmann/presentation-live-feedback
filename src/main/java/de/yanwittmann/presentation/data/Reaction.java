@@ -16,16 +16,12 @@ public class Reaction {
             new Reaction("Coffee Break", "\u2615"),
             new Reaction("Checkmark", "\u2714️"),
             new Reaction("Cross", "\u274C"),
-            new Reaction("Answer 1", "1️⃣"),
-            new Reaction("Answer 2", "2️⃣"),
-            new Reaction("Answer 3", "3️⃣"),
-            new Reaction("Answer 4", "4️⃣"),
-            new Reaction("Answer 5", "5️⃣"),
-            new Reaction("Answer 6", "6️⃣")
-            //new Reaction("Number 7", "7️⃣"),
-            //new Reaction("Number 8", "8️⃣"),
-            //new Reaction("Number 9", "9️⃣"),
-            //new Reaction("Number 10", "🔟")
+            new Reaction("Answer 1", "\u0031\uFE0F\u20E3"),
+            new Reaction("Answer 2", "\u0032\uFE0F\u20E3"),
+            new Reaction("Answer 3", "\u0033\uFE0F\u20E3"),
+            new Reaction("Answer 4", "\u0034\uFE0F\u20E3"),
+            new Reaction("Answer 5", "\u0035\uFE0F\u20E3"),
+            new Reaction("Answer 6", "\u0036\uFE0F\u20E3")
     );
 
     private final String name;
