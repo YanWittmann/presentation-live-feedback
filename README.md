@@ -21,4 +21,4 @@ and run it using at least Java 11.
 You can pass the flags `-ws=` and `-hs=` for setting the port for the web socket server and the http server respectively.
 
 In the running command line process, type in `password` to print the admin password.  
-Print `exit` to exit the application.
+Use `exit` to exit the application.
