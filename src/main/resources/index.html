@@ -46,7 +46,10 @@
         </tbody>
     </table>
 
-    <div id="reaction-button-container" class="hidden">
+    <div id="reaction-button-container" class="hidden"></div>
+    <div id="other-user-actions-container" class="hidden">
+        <button id="hand-raise-button" class="btn btn-primary">Raise Hand ✋</button>
+        <button id="adminClearAllHandRaise" class="btn btn-primary admin-only hidden">Clear all ✋</button>
     </div>
 
     <div id="login-form">
@@ -129,13 +132,16 @@
                     updateUserEntries(message.content.users);
                     break;
                 case "adminConfirmation":
-                    setAdminEnabled(message.content.isCorrect);
+                    adminCorrect = message.content.isCorrect;
+                    console.log('Admin password correct:', adminCorrect);
+                    setAdminEnabled();
                     break;
             }
         }
     }
 
     function initializeServerConnection() {
+        adminCorrect = false;
         const headers = getResponseHeaders();
 
         if (!headers['websocket-address']) {
@@ -201,6 +207,7 @@
         }
 
         updateTooltips();
+        setAdminEnabled();
     }
 
     function updateUserEntries(users) {
@@ -208,6 +215,7 @@
         for (let user of users) {
             let username = user.name;
             let reaction = user.reaction;
+            let handRaisedIndex = user.handRaisedIndex;
             let reactionLastChanged = user.reactionLastChanged;
 
             let entry = container.querySelector('[data-username="' + username + '"]');
@@ -215,6 +223,8 @@
                 entry.dataset.lastUpdated = reactionLastChanged;
                 let element = entry.querySelector('.reaction-emote');
                 element.firstChild.innerText = reaction.emote;
+                let userNameElement = entry.querySelector('.username');
+                userNameElement.innerText = makeUsernameHandRaised(username, handRaisedIndex);
             } else {
                 entry = document.createElement('tr');
                 entry.dataset.username = username;
@@ -233,7 +243,7 @@
 
                 let usernameCell = document.createElement('td');
                 usernameCell.className = 'username';
-                usernameCell.innerText = username;
+                usernameCell.innerText = makeUsernameHandRaised(username, handRaisedIndex);
 
                 entry.appendChild(emote);
                 entry.appendChild(usernameCell);
@@ -250,6 +260,15 @@
             }
 
             updateTooltips();
+            setAdminEnabled();
+        }
+    }
+
+    function makeUsernameHandRaised(username, handRaiseIndex) {
+        if (handRaiseIndex <= 0) {
+            return username;
+        } else {
+            return username + ' ✋ (' + handRaiseIndex + ')';
         }
     }
 
@@ -401,6 +420,7 @@
     let initializeSessionButtonActive = true;
 
     function initialize() {
+        adminCorrect = false;
         let joinSessionButton = document.getElementById('join-session-button');
         joinSessionButton.addEventListener('click', function () {
             if (!initializeSessionButtonActive) return;
@@ -422,6 +442,21 @@
                     sendMessage({type: 'isAdminPasswordCorrect'});
                 }, 1000);
             }
+
+            let storeUsernameBetweenSessionsToggle = document.getElementById('storeUsernameBetweenSessionsToggle');
+            if (storeUsernameBetweenSessionsToggle.checked) {
+                localStorage.setItem('username', username);
+            } else {
+                localStorage.removeItem('username');
+            }
+        });
+
+        document.getElementById('adminClearAllHandRaise').addEventListener('click', function () {
+            sendMessage({type: 'clearAllHandRaise'});
+        });
+
+        document.getElementById('hand-raise-button').addEventListener('click', function () {
+            sendMessage({type: 'handRaiseToggle'});
         });
     }
 
@@ -436,8 +471,10 @@
         loginForm.classList.remove('hidden');
 
         let reactionButtonContainer = document.getElementById('reaction-button-container');
+        let otherUserActionsContainer = document.getElementById('other-user-actions-container');
         let userTable = document.getElementById('user-table');
         reactionButtonContainer.classList.add('hidden');
+        otherUserActionsContainer.classList.add('hidden');
         userTable.classList.add('hidden');
     }
 
@@ -447,18 +484,36 @@
         loginForm.classList.add('hidden');
 
         let reactionButtonContainer = document.getElementById('reaction-button-container');
+        let otherUserActionsContainer = document.getElementById('other-user-actions-container');
         let userTable = document.getElementById('user-table');
         reactionButtonContainer.classList.remove('hidden');
+        otherUserActionsContainer.classList.remove('hidden');
         userTable.classList.remove('hidden');
     }
 
-    function setAdminEnabled(enabled) {
-        console.log('Admin password correct:', enabled);
+    function setAdminEnabled() {
+        let adminElements = document.getElementsByClassName('admin-only');
+        for (let i = 0; i < adminElements.length; i++) {
+            if (adminCorrect) {
+                adminElements[i].classList.remove('hidden');
+            } else {
+                adminElements[i].classList.add('hidden');
+            }
+        }
     }
 
     let socket;
-    let username = 'anonymous user ' + Math.floor(Math.random() * 100);
     let adminPassword = 'NO_PASSWORD';
+    let adminCorrect = false;
+    let username
+    let localStorageUsername = localStorage.getItem('username');
+    if (localStorageUsername) {
+        username = localStorageUsername;
+        document.getElementById('inputUserName').value = username;
+        document.getElementById('storeUsernameBetweenSessionsToggle').checked = true;
+    } else {
+        username = 'anonymous user ' + Math.floor(Math.random() * 100);
+    }
 
     initialize();
 

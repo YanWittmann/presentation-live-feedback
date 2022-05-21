@@ -93,6 +93,16 @@ public class Manager {
                                 user.setReaction(reaction);
                             }
                             break;
+                        case "handRaiseToggle":
+                            userHandRaiseToggle(user);
+                            break;
+                        case "clearAllHandRaise":
+                            if (adminPasswordCorrect) {
+                                users.forEach(this::userHandLower);
+                            } else {
+                                sendMessageToUser(user, new JSONObject().put("type", "modal").put("title", "Unauthorized").put("message", "You do not have the permission to perform this action."));
+                            }
+                            break;
                         case "isAdminPasswordCorrect":
                             sendMessageToUser(user, new JSONObject().put("type", "adminConfirmation").put("isCorrect", adminPasswordCorrect));
                             break;
@@ -103,6 +113,50 @@ public class Manager {
             }
         } else {
             LOG.warn("Received message is not a JSON Object {}", message);
+        }
+    }
+
+    public void onHandRaised(User user, int handRaisedIndex) {
+        LOG.info("Hand index set to {} by {}", handRaisedIndex, user.getName());
+        broadcastToAllUsers(new JSONObject()
+                .put("type", "updateUsers")
+                .put("users", new JSONArray().put(user.toJson())));
+    }
+
+    private void userHandRaiseToggle(User user) {
+        if (user.isHandRaised()) {
+            userHandLower(user);
+        } else {
+            userHandRaise(user);
+        }
+    }
+
+    private void userHandRaise(User user) {
+        if (user.isHandRaised()) return;
+        int handRaiseCount = (int) users.stream().filter(User::isHandRaised).count();
+        user.setHandRaisedIndex(handRaiseCount + 1);
+        reorderHandRaised();
+    }
+
+    private void userHandLower(User user) {
+        if (!user.isHandRaised()) return;
+        user.setHandRaisedIndex(-1);
+        reorderHandRaised();
+    }
+
+    private boolean handRaiseIndexExists(int index) {
+        return users.stream().anyMatch(user -> user.isHandRaised() && user.getHandRaisedIndex() == index);
+    }
+
+    private void reorderHandRaised() {
+        int currentHandRaiseCount = 1;
+        int handRaiseCount = (int) users.stream().filter(User::isHandRaised).count();
+        while (currentHandRaiseCount <= handRaiseCount) {
+            if (!handRaiseIndexExists(currentHandRaiseCount)) {
+                final int finalCurrentHandRaiseCount = currentHandRaiseCount;
+                users.stream().filter(user -> user.isHandRaised() && user.getHandRaisedIndex() > finalCurrentHandRaiseCount).forEach(user -> user.setHandRaisedIndex(user.getHandRaisedIndex() - 1));
+            }
+            currentHandRaiseCount++;
         }
     }
 
@@ -135,6 +189,7 @@ public class Manager {
 
         User user = new User(name);
         user.addReactionChangeListener(this::onUserReactionChange);
+        user.addHandRaisedListener(this::onHandRaised);
         users.add(user);
 
         return user;
