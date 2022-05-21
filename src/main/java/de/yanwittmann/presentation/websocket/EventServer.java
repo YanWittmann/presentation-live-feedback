@@ -16,13 +16,18 @@ package de.yanwittmann.presentation.websocket;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.server.config.JettyWebSocketServletContainerInitializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.SocketAddress;
 import java.net.URI;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class EventServer {
 
@@ -78,12 +83,17 @@ public class EventServer {
 
     public void broadcast(String message) {
         LOG.info("Broadcasting message: {}", message);
-        EventSocket.SESSIONS.values().forEach(session -> {
+        List<SocketAddress> toBeRemoved = new ArrayList<>(0);
+
+        for (Map.Entry<SocketAddress, Session> entry : EventSocket.SESSIONS.entrySet()) {
             try {
-                session.getRemote().sendString(message);
+                entry.getValue().getRemote().sendString(message);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                LOG.warn("Error sending message, removing session from socket list; {}", e.getMessage());
+                toBeRemoved.add(entry.getKey());
             }
-        });
+        }
+
+        toBeRemoved.forEach(EventSocket.SESSIONS::remove);
     }
 }

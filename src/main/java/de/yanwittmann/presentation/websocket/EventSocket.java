@@ -40,7 +40,7 @@ public class EventSocket extends WebSocketAdapter {
         LOG.info("Client connected: {}", sess.getRemoteAddress());
         SESSIONS.put(sess.getRemoteAddress(), sess);
         try {
-            sess.getRemote().sendString("Connected to " + sess.getLocalAddress());
+            sess.getRemote().sendString("{\"to\":\"ALL_USERS\",\"content\":\"Connected to " + sess.getLocalAddress() + "\"}");
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -50,6 +50,7 @@ public class EventSocket extends WebSocketAdapter {
     public void onWebSocketText(String message) {
         super.onWebSocketText(message);
         LOG.info("Received TEXT message: {}", message);
+        userMessageListeners.forEach(listener -> listener.onUserMessage(message));
     }
 
     @Override
@@ -92,6 +93,6 @@ public class EventSocket extends WebSocketAdapter {
     }
 
     public interface UserMessageListener {
-        void onUserMessage(Session session, String message);
+        void onUserMessage(String message);
     }
 }

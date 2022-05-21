@@ -1,21 +1,23 @@
 package de.yanwittmann.presentation.data;
 
+import org.json.JSONObject;
+
 import java.util.Arrays;
 import java.util.List;
 
 public class Reaction {
 
     public final static List<Reaction> REACTIONS = Arrays.asList(
-            new Reaction("smile", "\uD83D\uDE00"),
-            new Reaction("love", "\uD83D\uDE0D"),
-            new Reaction("think", "\uD83E\uDD14"),
-            new Reaction("turtle", "\uD83D\uDC22"),
-            new Reaction("bunny", "\uD83D\uDC07"),
-            new Reaction("number1", "1️⃣"),
-            new Reaction("number2", "2️⃣"),
-            new Reaction("number3", "3️⃣"),
-            new Reaction("number4", "4️⃣"),
-            new Reaction("number5", "5️⃣")
+            new Reaction("Smile", "\uD83D\uDE00"),
+            new Reaction("Love", "\uD83D\uDE0D"),
+            new Reaction("Confusion", "\uD83E\uDD14"),
+            new Reaction("Slower", "\uD83D\uDC22"),
+            new Reaction("Faster", "\uD83D\uDC07"),
+            new Reaction("Number 1", "1️⃣"),
+            new Reaction("Number 2", "2️⃣"),
+            new Reaction("Number 3", "3️⃣"),
+            new Reaction("Number 4", "4️⃣"),
+            new Reaction("Number 5", "5️⃣")
     );
 
     private final String name;
@@ -32,5 +34,26 @@ public class Reaction {
 
     public String getEmote() {
         return emote;
+    }
+
+    public JSONObject toJson() {
+        JSONObject json = new JSONObject();
+        json.put("name", name);
+        json.put("emote", emote);
+        return json;
+    }
+
+    @Override
+    public String toString() {
+        return "Reaction [name=" + name + ", emote=" + emote + "]";
+    }
+
+    public static Reaction findReaction(String reactionName, String emote) {
+        for (Reaction reaction : REACTIONS) {
+            if (reaction.getName().equals(reactionName) || reaction.getEmote().equals(emote)) {
+                return reaction;
+            }
+        }
+        throw new IllegalArgumentException("Reaction not found: " + reactionName + " " + emote);
     }
 }

@@ -6,75 +6,141 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
           integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3"
           crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.9.2/umd/popper.min.js"
+            integrity="sha512-2rNj2KJ+D8s1ceNasTIex6z4HWyOnEYLVC3FigGOmyQCZc2eBXKgOxQmo3oKLHyfcj53uz4QMsRCWNbLd32Q1g=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"
+            integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13"
+            crossorigin="anonymous"></script>
 
     <style>
     .w-10 {
         width: 10% !important;
+    }
+
+    .mr-1 {
+        margin-right: .3rem !important;
+    }
+
+    .reaction-emote {
+        font-size: 21px;
+    }
+
+    .hidden {
+        display: none;
     }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <table class="table table-hover">
+    <table id="user-table" class="table table-hover hidden">
         <thead>
         <tr>
             <th scope="col" class="w-10">Status</th>
             <th scope="col">Name</th>
         </tr>
         </thead>
-        <tbody>
-        <tr>
-            <td>😀</td>
-            <td>User 1</td>
-        </tr>
-        <tr>
-            <td>😀</td>
-            <td>User 2</td>
-        </tr>
+        <tbody id="user-entry-container">
         </tbody>
     </table>
 
-    <div class="btn-toolbar justify-content-between mb-2" role="toolbar" aria-label="Toolbar with button groups">
-        <div class="btn-group" role="group" aria-label="First group">
-            <button type="button" class="btn btn-outline-primary">😀</button>
-            <button type="button" class="btn btn-outline-primary">😍</button>
-            <button type="button" class="btn btn-outline-primary">🤔</button>
-            <button type="button" class="btn btn-outline-primary">🐢</button>
-            <button type="button" class="btn btn-outline-primary">🐇</button>
-        </div>
+    <div id="reaction-button-container" class="hidden">
     </div>
-    <div class="btn-toolbar justify-content-between" role="toolbar" aria-label="Toolbar with button groups">
-        <div class="btn-group" role="group" aria-label="First group">
-            <button type="button" class="btn btn-outline-primary">1️⃣</button>
-            <button type="button" class="btn btn-outline-primary">2️⃣</button>
-            <button type="button" class="btn btn-outline-primary">3️⃣</button>
-            <button type="button" class="btn btn-outline-primary">4️⃣</button>
-            <button type="button" class="btn btn-outline-primary">5️⃣</button>
+
+    <div id="login-form">
+        <br>
+        <h3>Join a Session</h3>
+        <div class="mb-3">
+            <label for="inputUserName" class="form-label">Username</label>
+            <input type="text" class="form-control" id="inputUserName">
+        </div>
+        <div class="mb-3">
+            <label for="adminPasswordInput" class="form-label">Admin Password</label>
+            <input type="password" class="form-control" id="adminPasswordInput">
+            <div id="emailHelp" class="form-text">Optional. Allows for more actions to be taken.</div>
+        </div>
+        <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="storeUsernameBetweenSessionsToggle">
+            <label class="form-check-label" for="storeUsernameBetweenSessionsToggle">
+                Store username between sessions
+            </label>
+        </div>
+        <button id="join-session-button" class="btn btn-primary">Join Session</button>
+    </div>
+</div>
+
+<button id="openGeneralModalButton" type="button" class="btn btn-primary hidden" data-bs-toggle="modal"
+        data-bs-target="#generalModal">
+    Launch demo modal
+</button>
+
+<div class="modal fade" id="generalModal" tabindex="-1" aria-labelledby="generalModalTitle" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="generalModalTitle">Modal title</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div id="generalModalContent" class="modal-body">
+                No content here.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
         </div>
     </div>
 </div>
 
+
 <script>
+    function openModal(title, content) {
+        let openGeneralModalButton = document.getElementById('openGeneralModalButton');
+        let modalTitle = document.getElementById('generalModalTitle');
+        let modalContent = document.getElementById('generalModalContent');
+
+        modalTitle.innerText = title;
+        modalContent.innerText = content;
+
+        openGeneralModalButton.click();
+    }
+
     function sendMessage(content) {
         let message = {
             content: content,
-            from: username
+            from: username,
+            admin: adminPassword
         };
-        socket.send(JSON.stringify(message));
         console.log('sent message: ' + JSON.stringify(message));
+        socket.send(JSON.stringify(message));
     }
 
     function socketCallback(event) {
         console.log('Message from server: ' + event.data);
-        document.body.innerHTML = event.data;
+        let message = JSON.parse(event.data);
+        if (message.to !== username && message.to !== 'ALL_USERS') return;
+        if (message.content.type) {
+            switch (message.content.type) {
+                case "updateReactions":
+                    updateReactionButtons(message.content.reactions);
+                    break;
+                case "updateUsers":
+                    updateUserEntries(message.content.users);
+                    break;
+                case "adminConfirmation":
+                    setAdminEnabled(message.content.isCorrect);
+                    break;
+            }
+        }
     }
 
     function initializeServerConnection() {
         const headers = getResponseHeaders();
 
         if (!headers['websocket-address']) {
-            alert('Server did not provide access data.');
+            openModal('Error', 'Server did not provide API endpoint.');
+            setFormInputSessionActive();
             return;
         }
 
@@ -84,12 +150,20 @@
         const socket = new WebSocket(websocketAddress);
 
         socket.addEventListener('open', function (event) {
-            sendMessage('hello world');
+            sendMessage('register');
         });
 
         socket.addEventListener('message', function (event) {
             socketCallback(event);
         });
+
+        socket.addEventListener('close', function (event) {
+            console.log('Socket closed.');
+            setFormInputSessionActive();
+            openModal('Session closed', 'Thank you for being part of the session. Until next time!');
+        });
+
+        setSessionActive();
 
         return socket;
     }
@@ -108,8 +182,286 @@
         }, {});
     }
 
-    const socket = initializeServerConnection();
-    let username = 'yan';
+    function updateReactionButtons(reactions) {
+        let container = document.getElementById('reaction-button-container');
+        removeAllChildren(container);
+
+        for (let reaction of reactions) {
+            let symbol = reaction.emote;
+            let name = reaction.name;
+            let button = document.createElement('button');
+            makeTooltip(button, name);
+            button.type = 'button';
+            button.className = 'btn btn-outline-primary mb-2 mr-1';
+            button.innerText = symbol;
+            button.addEventListener('click', function () {
+                sendReaction(symbol, name);
+            });
+            container.appendChild(button);
+        }
+
+        updateTooltips();
+    }
+
+    function updateUserEntries(users) {
+        let container = document.getElementById('user-entry-container');
+        for (let user of users) {
+            let username = user.name;
+            let reaction = user.reaction;
+            let reactionLastChanged = user.reactionLastChanged;
+
+            let entry = container.querySelector('[data-username="' + username + '"]');
+            if (entry) {
+                entry.dataset.lastUpdated = reactionLastChanged;
+                let element = entry.querySelector('.reaction-emote');
+                element.firstChild.innerText = reaction.emote;
+            } else {
+                entry = document.createElement('tr');
+                entry.dataset.username = username;
+                entry.dataset.lastUpdated = reactionLastChanged;
+
+                let emote = document.createElement('td');
+                emote.className = 'reaction-emote';
+                let emoteElement = document.createElement('span');
+                emoteElement.innerText = reaction.emote;
+                emote.appendChild(emoteElement);
+                makeTooltip(emoteElement, fromNow(reactionLastChanged));
+                emote.addEventListener('mouseenter', function () {
+                    let asInt = parseInt(entry.dataset.lastUpdated);
+                    makeTooltip(emoteElement, fromNow(asInt));
+                });
+
+                let usernameCell = document.createElement('td');
+                usernameCell.className = 'username';
+                usernameCell.innerText = username;
+
+                entry.appendChild(emote);
+                entry.appendChild(usernameCell);
+                container.appendChild(entry);
+            }
+
+            let entries = Array.from(container.querySelectorAll('tr'));
+            entries.sort(function (a, b) {
+                return b.dataset.lastUpdated - a.dataset.lastUpdated;
+            });
+            removeAllChildren(container);
+            for (let entry of entries) {
+                container.appendChild(entry);
+            }
+
+            updateTooltips();
+        }
+    }
+
+    /**
+     * Human readable elapsed or remaining time (example: 3 minutes ago)
+     * @param  {Date|Number|String} date A Date object, timestamp or string parsable with Date.parse()
+     * @return {string} Human readable elapsed or remaining time
+     * @author github.com/victornpb
+     * @see https://stackoverflow.com/a/67338038/938822
+     */
+    function fromNow(date) {
+        const SECOND = 1000;
+        const MINUTE = 60 * SECOND;
+        const HOUR = 60 * MINUTE;
+        const DAY = 24 * HOUR;
+        const WEEK = 7 * DAY;
+        const MONTH = 30 * DAY;
+        const YEAR = 365 * DAY;
+        const units = [
+            {
+                max: 5 * SECOND,
+                divisor: 1,
+                past1: 'just now',
+                pastN: 'just now',
+                future1: 'just now',
+                futureN: 'just now'
+            },
+            {
+                max: MINUTE,
+                divisor: SECOND,
+                past1: 'a second ago',
+                pastN: '# seconds ago',
+                future1: 'in a second',
+                futureN: 'in # seconds'
+            },
+            {
+                max: HOUR,
+                divisor: MINUTE,
+                past1: 'a minute ago',
+                pastN: '# minutes ago',
+                future1: 'in a minute',
+                futureN: 'in # minutes'
+            },
+            {
+                max: DAY,
+                divisor: HOUR,
+                past1: 'an hour ago',
+                pastN: '# hours ago',
+                future1: 'in an hour',
+                futureN: 'in # hours'
+            },
+            {
+                max: WEEK,
+                divisor: DAY,
+                past1: 'yesterday',
+                pastN: '# days ago',
+                future1: 'tomorrow',
+                futureN: 'in # days'
+            },
+            {
+                max: 4 * WEEK,
+                divisor: WEEK,
+                past1: 'last week',
+                pastN: '# weeks ago',
+                future1: 'in a week',
+                futureN: 'in # weeks'
+            },
+            {
+                max: YEAR,
+                divisor: MONTH,
+                past1: 'last month',
+                pastN: '# months ago',
+                future1: 'in a month',
+                futureN: 'in # months'
+            },
+            {
+                max: 100 * YEAR,
+                divisor: YEAR,
+                past1: 'last year',
+                pastN: '# years ago',
+                future1: 'in a year',
+                futureN: 'in # years'
+            },
+            {
+                max: 1000 * YEAR,
+                divisor: 100 * YEAR,
+                past1: 'last century',
+                pastN: '# centuries ago',
+                future1: 'in a century',
+                futureN: 'in # centuries'
+            },
+            {
+                max: Infinity,
+                divisor: 1000 * YEAR,
+                past1: 'last millennium',
+                pastN: '# millennia ago',
+                future1: 'in a millennium',
+                futureN: 'in # millennia'
+            },
+        ];
+        const diff = Date.now() - (typeof date === 'object' ? date : new Date(date)).getTime();
+        const diffAbs = Math.abs(diff);
+        for (const unit of units) {
+            if (diffAbs < unit.max) {
+                const isFuture = diff < 0;
+                const x = Math.round(Math.abs(diff) / unit.divisor);
+                if (x <= 1) return isFuture ? unit.future1 : unit.past1;
+                return (isFuture ? unit.futureN : unit.pastN).replace('#', x);
+            }
+        }
+    };
+
+    function createTooltip(text, tooltipText) {
+        let tooltip = document.createElement('span');
+        makeTooltip(tooltip, tooltipText);
+        tooltip.innerText = text;
+        return tooltip;
+    }
+
+    function makeTooltip(element, tooltipText) {
+        element.setAttribute('data-bs-toggle', 'tooltip');
+        element.setAttribute('data-bs-placement', 'bottom');
+        element.setAttribute('data-bs-original-title', tooltipText);
+    }
+
+    function updateTooltips() {
+        let tooltips = document.querySelectorAll('.tooltip');
+        for (let tooltip of tooltips) {
+            tooltip.remove();
+        }
+        [...document.querySelectorAll('[data-bs-toggle="tooltip"]')].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+    }
+
+    function removeAllChildren(element) {
+        while (element.firstChild) {
+            element.removeChild(element.firstChild);
+        }
+    }
+
+    function sendReaction(symbol, reactionName) {
+        let message = {
+            type: 'reaction',
+            emote: symbol,
+            reactionName: reactionName
+        };
+        sendMessage(message);
+    }
+
+    let initializeSessionButtonActive = true;
+
+    function initialize() {
+        let joinSessionButton = document.getElementById('join-session-button');
+        joinSessionButton.addEventListener('click', function () {
+            if (!initializeSessionButtonActive) return;
+            initializeSessionButtonActive = false;
+            joinSessionButton.classList.remove('btn-primary');
+            joinSessionButton.classList.add('btn-secondary');
+            joinSessionButton.setAttribute('disabled', 'disabled');
+            username = document.getElementById('inputUserName').value;
+            adminPassword = document.getElementById('adminPasswordInput').value;
+            if (username.length === 0) {
+                openModal('Error', 'Please enter a valid username');
+                setFormInputSessionActive();
+                return;
+            }
+            socket = initializeServerConnection();
+
+            if (adminPassword.length > 0) {
+                setTimeout(function () {
+                    sendMessage({type: 'isAdminPasswordCorrect'});
+                }, 1000);
+            }
+        });
+    }
+
+    function setFormInputSessionActive() {
+        initializeSessionButtonActive = true;
+        let joinSessionButton = document.getElementById('join-session-button');
+        joinSessionButton.classList.remove('btn-secondary');
+        joinSessionButton.classList.add('btn-primary');
+        joinSessionButton.removeAttribute('disabled');
+
+        let loginForm = document.getElementById('login-form');
+        loginForm.classList.remove('hidden');
+
+        let reactionButtonContainer = document.getElementById('reaction-button-container');
+        let userTable = document.getElementById('user-table');
+        reactionButtonContainer.classList.add('hidden');
+        userTable.classList.add('hidden');
+    }
+
+    function setSessionActive() {
+        initializeSessionButtonActive = false;
+        let loginForm = document.getElementById('login-form');
+        loginForm.classList.add('hidden');
+
+        let reactionButtonContainer = document.getElementById('reaction-button-container');
+        let userTable = document.getElementById('user-table');
+        reactionButtonContainer.classList.remove('hidden');
+        userTable.classList.remove('hidden');
+    }
+
+    function setAdminEnabled(enabled) {
+        console.log('Admin password correct:', enabled);
+    }
+
+    let socket;
+    let username = 'anonymous user ' + Math.floor(Math.random() * 100);
+    let adminPassword = 'NO_PASSWORD';
+
+    initialize();
+
 </script>
 
 </body>
