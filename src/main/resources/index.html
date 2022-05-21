@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Presentation Live Feedback</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+          integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3"
+          crossorigin="anonymous">
+
+    <style>
+    .w-10 {
+        width: 10% !important;
+    }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <table class="table table-hover">
+        <thead>
+        <tr>
+            <th scope="col" class="w-10">Status</th>
+            <th scope="col">Name</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>😀</td>
+            <td>User 1</td>
+        </tr>
+        <tr>
+            <td>😀</td>
+            <td>User 2</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div class="btn-toolbar justify-content-between mb-2" role="toolbar" aria-label="Toolbar with button groups">
+        <div class="btn-group" role="group" aria-label="First group">
+            <button type="button" class="btn btn-outline-primary">😀</button>
+            <button type="button" class="btn btn-outline-primary">😍</button>
+            <button type="button" class="btn btn-outline-primary">🤔</button>
+            <button type="button" class="btn btn-outline-primary">🐢</button>
+            <button type="button" class="btn btn-outline-primary">🐇</button>
+        </div>
+    </div>
+    <div class="btn-toolbar justify-content-between" role="toolbar" aria-label="Toolbar with button groups">
+        <div class="btn-group" role="group" aria-label="First group">
+            <button type="button" class="btn btn-outline-primary">1️⃣</button>
+            <button type="button" class="btn btn-outline-primary">2️⃣</button>
+            <button type="button" class="btn btn-outline-primary">3️⃣</button>
+            <button type="button" class="btn btn-outline-primary">4️⃣</button>
+            <button type="button" class="btn btn-outline-primary">5️⃣</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function sendMessage(content) {
+        let message = {
+            content: content,
+            from: username
+        };
+        socket.send(JSON.stringify(message));
+        console.log('sent message: ' + JSON.stringify(message));
+    }
+
+    function socketCallback(event) {
+        console.log('Message from server: ' + event.data);
+        document.body.innerHTML = event.data;
+    }
+
+    function initializeServerConnection() {
+        const headers = getResponseHeaders();
+
+        if (!headers['websocket-address']) {
+            alert('Server did not provide access data.');
+            return;
+        }
+
+        let websocketAddress = headers['websocket-address'];
+        console.log('WebSocket-Address: ' + websocketAddress);
+
+        const socket = new WebSocket(websocketAddress);
+
+        socket.addEventListener('open', function (event) {
+            sendMessage('hello world');
+        });
+
+        socket.addEventListener('message', function (event) {
+            socketCallback(event);
+        });
+
+        return socket;
+    }
+
+    function getResponseHeaders() {
+        let req = new XMLHttpRequest();
+        req.open('GET', document.location, false);
+        req.send(null);
+        let headers = req.getAllResponseHeaders().toLowerCase();
+        return headers.split(/\n|\r|\r\n/g).reduce(function (a, b) {
+            if (b.length) {
+                let [key, value] = b.split(': ');
+                a[key] = value;
+            }
+            return a;
+        }, {});
+    }
+
+    const socket = initializeServerConnection();
+    let username = 'yan';
+</script>
+
+</body>
+</html>
