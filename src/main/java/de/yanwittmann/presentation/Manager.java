@@ -96,9 +96,34 @@ public class Manager {
                         case "handRaiseToggle":
                             userHandRaiseToggle(user);
                             break;
+                        case "adminRemoveHandRaise":
+                            if (adminPasswordCorrect) {
+                                User foundUser = findUser(messageJson.optString("removeName", ""));
+                                if (foundUser != null) {
+                                    userHandLower(foundUser);
+                                }
+                            } else {
+                                sendMessageToUser(user, new JSONObject().put("type", "modal").put("title", "Unauthorized").put("message", "You do not have the permission to perform this action."));
+                            }
+                            break;
                         case "clearAllHandRaise":
                             if (adminPasswordCorrect) {
                                 users.forEach(this::userHandLower);
+                            } else {
+                                sendMessageToUser(user, new JSONObject().put("type", "modal").put("title", "Unauthorized").put("message", "You do not have the permission to perform this action."));
+                            }
+                            break;
+                        case "adminMessage":
+                            if (adminPasswordCorrect) {
+                                String sendMessage = messageJson.optString("message", null);
+                                String toUser = messageJson.optString("to", null);
+                                String fromUser = messageJson.optString("from", null);
+                                if (sendMessage != null && toUser != null && fromUser != null) {
+                                    User foundUser = findUser(toUser);
+                                    if (foundUser != null) {
+                                        sendMessageToUser(foundUser, new JSONObject().put("type", "modal").put("title", "Message from " + fromUser).put("message", sendMessage));
+                                    }
+                                }
                             } else {
                                 sendMessageToUser(user, new JSONObject().put("type", "modal").put("title", "Unauthorized").put("message", "You do not have the permission to perform this action."));
                             }
@@ -193,6 +218,15 @@ public class Manager {
         users.add(user);
 
         return user;
+    }
+
+    private User findUser(String name) {
+        for (User user : users) {
+            if (user.getName().equals(name)) {
+                return user;
+            }
+        }
+        return null;
     }
 
     private JSONObject generateReactionsMessage() {

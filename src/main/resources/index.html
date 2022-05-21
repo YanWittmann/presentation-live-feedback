@@ -23,12 +23,20 @@
         margin-right: .3rem !important;
     }
 
+    .ml-1 {
+        margin-left: .3rem !important;
+    }
+
     .reaction-emote {
         font-size: 21px;
     }
 
     .hidden {
         display: none;
+    }
+
+    .clickable {
+        cursor: pointer;
     }
     </style>
 </head>
@@ -42,14 +50,14 @@
             <th scope="col">Name</th>
         </tr>
         </thead>
-        <tbody id="user-entry-container">
-        </tbody>
+        <tbody id="user-entry-container"></tbody>
     </table>
 
     <div id="reaction-button-container" class="hidden"></div>
     <div id="other-user-actions-container" class="hidden">
-        <button id="hand-raise-button" class="btn btn-primary">Raise Hand ✋</button>
+        <button id="hand-raise-button" class="btn btn-primary">✋</button>
         <button id="adminClearAllHandRaise" class="btn btn-primary admin-only hidden">Clear all ✋</button>
+        <div id="adminReactionCounts" class="admin-only hidden"></div>
     </div>
 
     <div id="login-form">
@@ -136,6 +144,11 @@
                     console.log('Admin password correct:', adminCorrect);
                     setAdminEnabled();
                     break;
+                case "modal":
+                    let title = message.content.title;
+                    let content = message.content.message;
+                    openModal(title, content);
+                    break;
             }
         }
     }
@@ -166,6 +179,7 @@
         socket.addEventListener('close', function (event) {
             console.log('Socket closed.');
             setFormInputSessionActive();
+            document.getElementById('adminPasswordInput').value = '';
             openModal('Session closed', 'Thank you for being part of the session. Until next time!');
         });
 
@@ -192,6 +206,7 @@
         let container = document.getElementById('reaction-button-container');
         removeAllChildren(container);
 
+
         for (let reaction of reactions) {
             let symbol = reaction.emote;
             let name = reaction.name;
@@ -213,21 +228,37 @@
     function updateUserEntries(users) {
         let container = document.getElementById('user-entry-container');
         for (let user of users) {
-            let username = user.name;
+            let currentUsername = user.name;
             let reaction = user.reaction;
             let handRaisedIndex = user.handRaisedIndex;
             let reactionLastChanged = user.reactionLastChanged;
 
-            let entry = container.querySelector('[data-username="' + username + '"]');
+            let entry = container.querySelector('[data-username="' + currentUsername + '"]');
             if (entry) {
                 entry.dataset.lastUpdated = reactionLastChanged;
                 let element = entry.querySelector('.reaction-emote');
                 element.firstChild.innerText = reaction.emote;
                 let userNameElement = entry.querySelector('.username');
-                userNameElement.innerText = makeUsernameHandRaised(username, handRaisedIndex);
+
+                removeAllChildren(userNameElement);
+
+                let usernameHandRaisedElement = makeUsernameHandRaised(currentUsername, handRaisedIndex);
+                userNameElement.appendChild(usernameHandRaisedElement);
+
+                let sendMessageToUser = document.createElement('span');
+                sendMessageToUser.className = 'ml-1 clickable admin-only hidden';
+                sendMessageToUser.innerText = '📧';
+                sendMessageToUser.addEventListener('click', function () {
+                    let input = prompt('Enter message to send to ' + currentUsername);
+                    if (input) {
+                        let message = {type: 'adminMessage', 'to': currentUsername, 'message': input, 'from': username};
+                        sendMessage(message);
+                    }
+                });
+                userNameElement.appendChild(sendMessageToUser);
             } else {
                 entry = document.createElement('tr');
-                entry.dataset.username = username;
+                entry.dataset.username = currentUsername;
                 entry.dataset.lastUpdated = reactionLastChanged;
 
                 let emote = document.createElement('td');
@@ -243,7 +274,20 @@
 
                 let usernameCell = document.createElement('td');
                 usernameCell.className = 'username';
-                usernameCell.innerText = makeUsernameHandRaised(username, handRaisedIndex);
+                let usernameHandRaisedElement = makeUsernameHandRaised(currentUsername, handRaisedIndex);
+                usernameCell.appendChild(usernameHandRaisedElement);
+
+                let sendMessageToUser = document.createElement('span');
+                sendMessageToUser.className = 'ml-1 clickable admin-only hidden';
+                sendMessageToUser.innerText = '📧';
+                sendMessageToUser.addEventListener('click', function () {
+                    let input = prompt('Enter message to send to ' + currentUsername);
+                    if (input) {
+                        let message = {type: 'adminMessage', 'to': currentUsername, 'message': input, 'from': username};
+                        sendMessage(message);
+                    }
+                });
+                usernameCell.appendChild(sendMessageToUser);
 
                 entry.appendChild(emote);
                 entry.appendChild(usernameCell);
@@ -262,14 +306,49 @@
             updateTooltips();
             setAdminEnabled();
         }
+
+
+        let reactionCountsMap = new Map();
+
+        let entries = Array.from(container.querySelectorAll('tr'));
+        for (let i = 0; i < entries.length; i++) {
+            let reactionColumn = entries[i].querySelector('.reaction-emote');
+            let reaction = reactionColumn.firstChild.innerText;
+            if (reactionCountsMap.has(reaction)) {
+                reactionCountsMap.set(reaction, reactionCountsMap.get(reaction) + 1);
+            } else {
+                reactionCountsMap.set(reaction, 1);
+            }
+        }
+
+        let sortedReactionCounts = Array.from(reactionCountsMap).sort((a, b) => b[1] - a[1]);
+        let adminReactionCountsContainer = document.getElementById('adminReactionCounts');
+        removeAllChildren(adminReactionCountsContainer);
+        for (let [reaction, count] of sortedReactionCounts) {
+            let badge = document.createElement('span');
+            badge.className = 'badge bg-secondary text-white m-2 p-2 fs-6';
+            badge.innerText = count + ' ' + reaction;
+            adminReactionCountsContainer.appendChild(badge);
+        }
     }
 
     function makeUsernameHandRaised(username, handRaiseIndex) {
+        let usernameElement = document.createElement('span');
         if (handRaiseIndex <= 0) {
-            return username;
+            usernameElement.innerText = username;
         } else {
-            return username + ' ✋ (' + handRaiseIndex + ')';
+            usernameElement.innerText = username + ' ';
+            let handRaiseElement = document.createElement('span');
+            handRaiseElement.classList.add('hand-raise');
+            handRaiseElement.classList.add('clickable');
+            handRaiseElement.innerText = '✋ (' + handRaiseIndex + ')';
+            handRaiseElement.addEventListener('click', function () {
+                let message = {type: 'adminRemoveHandRaise', 'removeName': username};
+                sendMessage(message);
+            });
+            usernameElement.appendChild(handRaiseElement);
         }
+        return usernameElement;
     }
 
     /**
@@ -449,6 +528,9 @@
             } else {
                 localStorage.removeItem('username');
             }
+
+            let userList = document.getElementById('user-entry-container');
+            removeAllChildren(userList);
         });
 
         document.getElementById('adminClearAllHandRaise').addEventListener('click', function () {
@@ -505,7 +587,7 @@
     let socket;
     let adminPassword = 'NO_PASSWORD';
     let adminCorrect = false;
-    let username
+    let username;
     let localStorageUsername = localStorage.getItem('username');
     if (localStorageUsername) {
         username = localStorageUsername;

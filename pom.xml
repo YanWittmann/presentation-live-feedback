@@ -97,7 +97,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>se1.seminarverwaltung.Main</mainClass>
+                            <mainClass>de.yanwittmann.presentation.Main</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>
