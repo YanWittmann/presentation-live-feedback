@@ -6,7 +6,7 @@
 
     <groupId>de.yanwittmann</groupId>
     <artifactId>presentation-live-feedback</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2-SNAPSHOT</version>
 
     <properties>
         <maven.compiler.source>11</maven.compiler.source>
