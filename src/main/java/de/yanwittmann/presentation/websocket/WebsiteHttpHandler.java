@@ -28,7 +28,7 @@ public class WebsiteHttpHandler implements HttpHandler {
         LOG.info("Handling HTTP exchange for [{}]", exchange.getRemoteAddress());
 
         exchange.getResponseHeaders().set("Content-Type", "text/html");
-        exchange.getResponseHeaders().set("WebSocket-Address", "ws://localhost:8080/events");
+        exchange.getResponseHeaders().set("WebSocket-Address", manager.getWebSocketPort() + "/events"); // e.g. ws://localhost:8080/events
 
         StringBuilder response = new StringBuilder();
         response.append(readResource("index.html"));

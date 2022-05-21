@@ -14,8 +14,20 @@ public class Main {
     public static void main(String[] args) throws Exception {
         logVersion();
 
-        Manager manager = new Manager();
-        manager.startupServer(8080, 8000);
+        // get the -ws and -hs parameters
+        int ws = 8080;
+        int hs = 8000;
+        for (String arg : args) {
+            if (arg.startsWith("-ws=")) {
+                ws = Integer.parseInt(arg.substring(4));
+            } else if (arg.startsWith("-hs=")) {
+                hs = Integer.parseInt(arg.substring(4));
+            }
+        }
+
+
+        Manager manager = new Manager(ws, hs);
+        manager.startupServer();
 
         // read user input
         while (true) {

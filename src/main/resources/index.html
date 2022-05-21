@@ -155,37 +155,49 @@
 
     function initializeServerConnection() {
         adminCorrect = false;
-        const headers = getResponseHeaders();
+        try {
+            const headers = getResponseHeaders();
 
-        if (!headers['websocket-address']) {
-            openModal('Error', 'Server did not provide API endpoint.');
+            if (!headers['websocket-address']) {
+                openModal('Error', 'Server did not provide API endpoint.');
+                setFormInputSessionActive();
+                return;
+            }
+
+            let websocketAddress = headers['websocket-address'];
+
+            /* the websocketAddress is only the port/path, so we need to add the hostname */
+            let hostname = window.location.hostname;
+            websocketAddress = 'ws://' + hostname + ':' + websocketAddress;
+            console.log('Attempting connection to', websocketAddress);
+
+            const socket = new WebSocket(websocketAddress);
+
+            socket.addEventListener('open', function (event) {
+                sendMessage('register');
+            });
+
+            socket.addEventListener('message', function (event) {
+                socketCallback(event);
+            });
+
+            socket.addEventListener('close', function (event) {
+                console.log('Socket closed.');
+                setFormInputSessionActive();
+                document.getElementById('adminPasswordInput').value = '';
+                openModal('Session closed', 'Thank you for being part of the session. Until next time!');
+            });
+
+            setSessionActive();
+
+            return socket;
+        } catch (e) {
+            console.log(e);
+            openModal('Error', 'WebSocket API endpoint could not be reached under ' + window.location.href);
             setFormInputSessionActive();
-            return;
         }
 
-        let websocketAddress = headers['websocket-address'];
-        console.log('WebSocket-Address: ' + websocketAddress);
-
-        const socket = new WebSocket(websocketAddress);
-
-        socket.addEventListener('open', function (event) {
-            sendMessage('register');
-        });
-
-        socket.addEventListener('message', function (event) {
-            socketCallback(event);
-        });
-
-        socket.addEventListener('close', function (event) {
-            console.log('Socket closed.');
-            setFormInputSessionActive();
-            document.getElementById('adminPasswordInput').value = '';
-            openModal('Session closed', 'Thank you for being part of the session. Until next time!');
-        });
-
-        setSessionActive();
-
-        return socket;
+        return null;
     }
 
     function getResponseHeaders() {

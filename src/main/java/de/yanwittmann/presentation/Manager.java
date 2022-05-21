@@ -23,12 +23,15 @@ public class Manager {
 
     private final EventServer webSocketServer = new EventServer();
     private HttpServer httpServer;
+    private final int webSocketPort, httpPort;
 
     private final List<User> users = new ArrayList<>();
 
     private final String adminPassword;
 
-    public Manager() {
+    public Manager(int webSocketPort, int httpPort) {
+        this.webSocketPort = webSocketPort;
+        this.httpPort = httpPort;
         this.adminPassword = randomAlphanumericString(10);
     }
 
@@ -46,7 +49,7 @@ public class Manager {
         return sb.toString();
     }
 
-    public void startupServer(int webSocketPort, int httpPort) {
+    public void startupServer() {
         EventSocket.addUserMessageListener(this::onUserMessage);
 
         new Thread(() -> {
@@ -66,6 +69,10 @@ public class Manager {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public int getWebSocketPort() {
+        return webSocketPort;
     }
 
     public void onUserMessage(String message) {
