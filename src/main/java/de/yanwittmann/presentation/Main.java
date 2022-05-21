@@ -29,6 +29,9 @@ public class Main {
         Manager manager = new Manager(ws, hs);
         manager.startupServer();
 
+        Thread.sleep(2000);
+        LOG.info("Commands available: [exit, password, ports]");
+
         // read user input
         while (true) {
             BufferedInputStream in = new BufferedInputStream(System.in);
@@ -41,10 +44,17 @@ public class Main {
 
             switch (input) {
                 case "exit":
+                case "quit":
                     manager.shutdownServer();
                     return;
                 case "password":
+                case "passwords":
                     LOG.info("Admin password is [{}]", manager.getAdminPassword());
+                    break;
+                case "ports":
+                case "port":
+                    LOG.info("WebSocket port is [{}]", ws);
+                    LOG.info("HTTP port is [{}]", hs);
                     break;
                 default:
                     LOG.info("Unknown command [{}]", input);

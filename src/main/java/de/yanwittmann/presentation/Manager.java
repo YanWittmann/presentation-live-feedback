@@ -120,15 +120,27 @@ public class Manager {
                                 sendMessageToUser(user, new JSONObject().put("type", "modal").put("title", "Unauthorized").put("message", "You do not have the permission to perform this action."));
                             }
                             break;
+                        case "clearAllReactions":
+                            if (adminPasswordCorrect) {
+                                users.forEach(u -> u.setReaction(Reaction.REACTIONS.get(0)));
+                            } else {
+                                sendMessageToUser(user, new JSONObject().put("type", "modal").put("title", "Unauthorized").put("message", "You do not have the permission to perform this action."));
+                            }
+                            break;
                         case "adminMessage":
                             if (adminPasswordCorrect) {
                                 String sendMessage = messageJson.optString("message", null);
                                 String toUser = messageJson.optString("to", null);
                                 String fromUser = messageJson.optString("from", null);
                                 if (sendMessage != null && toUser != null && fromUser != null) {
-                                    User foundUser = findUser(toUser);
-                                    if (foundUser != null) {
-                                        sendMessageToUser(foundUser, new JSONObject().put("type", "modal").put("title", "Message from " + fromUser).put("message", sendMessage));
+                                    JSONObject sendMessageJson = new JSONObject().put("type", "modal").put("title", "Message from " + fromUser).put("message", sendMessage);
+                                    if (toUser.equals("ALL_USERS")) {
+                                        broadcastToAllUsers(sendMessageJson);
+                                    } else {
+                                        User foundUser = findUser(toUser);
+                                        if (foundUser != null) {
+                                            sendMessageToUser(foundUser, sendMessageJson);
+                                        }
                                     }
                                 }
                             } else {

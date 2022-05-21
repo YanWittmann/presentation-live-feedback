@@ -55,8 +55,10 @@
 
     <div id="reaction-button-container" class="hidden"></div>
     <div id="other-user-actions-container" class="hidden">
-        <button id="hand-raise-button" class="btn btn-primary">✋</button>
-        <button id="adminClearAllHandRaise" class="btn btn-primary admin-only hidden">Clear all ✋</button>
+        <button id="hand-raise-button" class="btn btn-primary">&#x270B;</button>
+        <button id="adminClearAllHandRaise" class="btn btn-primary admin-only hidden">Clear all &#x270B;</button>
+        <button id="adminClearAllEmotes" class="btn btn-primary admin-only hidden">Clear all Reactions</button>
+        <button id="adminMessageToAllUsers" class="btn btn-primary admin-only hidden">&#x1F4E7; to all</button>
         <div id="adminReactionCounts" class="admin-only hidden"></div>
     </div>
 
@@ -278,10 +280,10 @@
                 let emoteElement = document.createElement('span');
                 emoteElement.innerText = reaction.emote;
                 emote.appendChild(emoteElement);
-                makeTooltip(emoteElement, fromNow(reactionLastChanged));
+                makeTooltip(emoteElement, fromNow(reactionLastChanged), 'right');
                 emote.addEventListener('mouseenter', function () {
                     let asInt = parseInt(entry.dataset.lastUpdated);
-                    makeTooltip(emoteElement, fromNow(asInt));
+                    makeTooltip(emoteElement, fromNow(asInt), 'right');
                 });
 
                 let usernameCell = document.createElement('td');
@@ -291,7 +293,7 @@
 
                 let sendMessageToUser = document.createElement('span');
                 sendMessageToUser.className = 'ml-1 clickable admin-only hidden';
-                sendMessageToUser.innerText = '📧';
+                sendMessageToUser.innerText = String.fromCodePoint(0x1F4E7);
                 sendMessageToUser.addEventListener('click', function () {
                     let input = prompt('Enter message to send to ' + currentUsername);
                     if (input) {
@@ -353,7 +355,8 @@
             let handRaiseElement = document.createElement('span');
             handRaiseElement.classList.add('hand-raise');
             handRaiseElement.classList.add('clickable');
-            handRaiseElement.innerText = '✋ (' + handRaiseIndex + ')';
+            let handEmoji = '\u270B';
+            handRaiseElement.innerText = handEmoji + ' (' + handRaiseIndex + ')';
             handRaiseElement.addEventListener('click', function () {
                 let message = {type: 'adminRemoveHandRaise', 'removeName': username};
                 sendMessage(message);
@@ -479,9 +482,9 @@
         return tooltip;
     }
 
-    function makeTooltip(element, tooltipText) {
+    function makeTooltip(element, tooltipText, direction = 'bottom') {
         element.setAttribute('data-bs-toggle', 'tooltip');
-        element.setAttribute('data-bs-placement', 'bottom');
+        element.setAttribute('data-bs-placement', direction);
         element.setAttribute('data-bs-original-title', tooltipText);
     }
 
@@ -547,6 +550,18 @@
 
         document.getElementById('adminClearAllHandRaise').addEventListener('click', function () {
             sendMessage({type: 'clearAllHandRaise'});
+        });
+
+        document.getElementById('adminClearAllEmotes').addEventListener('click', function () {
+            sendMessage({type: 'clearAllReactions'});
+        });
+
+        document.getElementById('adminMessageToAllUsers').addEventListener('click', function () {
+            let input = prompt('Enter message to send to all users');
+            if (input) {
+                let message = {type: 'adminMessage', 'to': 'ALL_USERS', 'message': input, 'from': username};
+                sendMessage(message);
+            }
         });
 
         document.getElementById('hand-raise-button').addEventListener('click', function () {
