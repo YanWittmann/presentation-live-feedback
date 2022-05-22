@@ -53,7 +53,7 @@ public class EventServer {
             // Configure default max size
             wsContainer.setMaxTextMessageSize(65535);
             // set timeout
-            wsContainer.setIdleTimeout(Duration.ofMinutes(5));
+            wsContainer.setIdleTimeout(Duration.ofHours(2));
 
             // Add websockets
             wsContainer.addMapping("/events/*", EventSocket.class);

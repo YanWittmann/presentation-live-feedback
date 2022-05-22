@@ -18,7 +18,10 @@ mvn clean package
 
 and run it using at least Java 11.
 
-You can pass the flags `-ws=` and `-hs=` for setting the port for the web socket server and the http server respectively.
+You can pass the flags `-ws=` and `-hs=` for setting the port for the web socket server and the http server respectively.  
+The default ports are `-ws=8080` and `-hs=8000`.
 
 In the running command line process, type in `password` to print the admin password.  
 Use `exit` to exit the application.
+
+Access the web interface at http://localhost:8000/presentation
