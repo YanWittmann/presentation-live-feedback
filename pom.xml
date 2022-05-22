@@ -70,6 +70,7 @@
                 <directory>${project.basedir}/src/main/resources</directory>
                 <filtering>true</filtering>
                 <includes>
+                    <include>**/*.html</include>
                     <include>**/*.properties</include>
                 </includes>
             </resource>
@@ -77,6 +78,7 @@
                 <directory>${project.basedir}/src/main/resources</directory>
                 <filtering>false</filtering>
                 <excludes>
+                    <exclude>**/*.html</exclude>
                     <exclude>**/*.properties</exclude>
                 </excludes>
             </resource>
