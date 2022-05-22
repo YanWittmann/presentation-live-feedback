@@ -35,6 +35,12 @@ public class Manager {
         this.adminPassword = randomAlphanumericString(10);
     }
 
+    public Manager(int webSocketPort, int httpPort, String adminPassword) {
+        this.webSocketPort = webSocketPort;
+        this.httpPort = httpPort;
+        this.adminPassword = adminPassword;
+    }
+
     public String getAdminPassword() {
         return adminPassword;
     }
@@ -79,12 +85,13 @@ public class Manager {
         if (message.startsWith("{")) {
 
             JSONObject json = new JSONObject(message);
+            String fromUUID = json.optString("uuid", null);
             String from = json.optString("from", null);
             String content = json.optString("content", null);
             boolean adminPasswordCorrect = json.optString("admin", "").equals(adminPassword);
 
-            if (from != null && content != null) {
-                User user = findOrCreateUser(from);
+            if (fromUUID != null && from != null && content != null) {
+                User user = findOrCreateUser(fromUUID, from);
 
                 if (content.equals("register")) {
                     broadcastToAllUsers(generateReactionsMessage());
@@ -105,7 +112,7 @@ public class Manager {
                             break;
                         case "adminRemoveHandRaise":
                             if (adminPasswordCorrect) {
-                                User foundUser = findUser(messageJson.optString("removeName", ""));
+                                User foundUser = findUser(messageJson.optString("userUUID", ""), messageJson.optString("userName", ""));
                                 if (foundUser != null) {
                                     userHandLower(foundUser);
                                 }
@@ -130,14 +137,15 @@ public class Manager {
                         case "adminMessage":
                             if (adminPasswordCorrect) {
                                 String sendMessage = messageJson.optString("message", null);
-                                String toUser = messageJson.optString("to", null);
-                                String fromUser = messageJson.optString("from", null);
-                                if (sendMessage != null && toUser != null && fromUser != null) {
+                                String toUserUUID = messageJson.optString("userUUID", null);
+                                String toUserName = messageJson.optString("userName", null);
+                                        String fromUser = messageJson.optString("from", null);
+                                if (sendMessage != null && toUserUUID != null && fromUser != null) {
                                     JSONObject sendMessageJson = new JSONObject().put("type", "modal").put("title", "Message from " + fromUser).put("message", sendMessage);
-                                    if (toUser.equals("ALL_USERS")) {
+                                    if (toUserUUID.equals("ALL_USERS")) {
                                         broadcastToAllUsers(sendMessageJson);
                                     } else {
-                                        User foundUser = findUser(toUser);
+                                        User foundUser = findUser(toUserUUID, toUserName);
                                         if (foundUser != null) {
                                             sendMessageToUser(foundUser, sendMessageJson);
                                         }
@@ -213,6 +221,7 @@ public class Manager {
     private void sendMessageToUser(User user, Object message) {
         JSONObject json = new JSONObject();
         json.put("to", user.getName());
+        json.put("toUUID", user.getUuid());
         json.put("content", message);
         webSocketServer.broadcast(json.toString());
     }
@@ -224,14 +233,14 @@ public class Manager {
         webSocketServer.broadcast(json.toString());
     }
 
-    private User findOrCreateUser(String name) {
+    private User findOrCreateUser(String uuid, String name) {
         for (User user : users) {
-            if (user.getName().equals(name)) {
+            if (user.isUser(uuid, name)) {
                 return user;
             }
         }
 
-        User user = new User(name);
+        User user = new User(uuid, name);
         user.addReactionChangeListener(this::onUserReactionChange);
         user.addHandRaisedListener(this::onHandRaised);
         users.add(user);
@@ -239,9 +248,9 @@ public class Manager {
         return user;
     }
 
-    private User findUser(String name) {
+    private User findUser(String uuid, String name) {
         for (User user : users) {
-            if (user.getName().equals(name)) {
+            if (user.isUser(uuid, name)) {
                 return user;
             }
         }

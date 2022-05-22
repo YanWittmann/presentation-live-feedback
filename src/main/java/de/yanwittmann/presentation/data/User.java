@@ -11,6 +11,7 @@ public class User {
 
     private final static Logger LOG = LoggerFactory.getLogger(User.class);
 
+    private final String uuid;
     private final String name;
     private Reaction reaction = Reaction.REACTIONS.get(0);
     private long reactionLastChanged = System.currentTimeMillis();
@@ -19,7 +20,8 @@ public class User {
     private Set<ReactionChangeListener> reactionChangeListeners = new HashSet<>();
     private Set<HandRaisedListener> handRaisedListeners = new HashSet<>();
 
-    public User(String name) {
+    public User(String uuid, String name) {
+        this.uuid = uuid;
         this.name = name;
         LOG.info("Created user [{}]", name);
     }
@@ -36,6 +38,10 @@ public class User {
 
     public String getName() {
         return name;
+    }
+
+    public String getUuid() {
+        return uuid;
     }
 
     public Reaction getReaction() {
@@ -77,11 +83,19 @@ public class User {
 
     public JSONObject toJson() {
         JSONObject json = new JSONObject();
+        json.put("uuid", uuid);
         json.put("name", name);
         json.put("reaction", reaction.toJson());
         json.put("reactionLastChanged", reactionLastChanged);
         json.put("handRaisedIndex", handRaisedIndex);
         return json;
+    }
+
+    public boolean isUser(String uuid, String name) {
+        if (uuid == null || name == null) {
+            return false;
+        }
+        return String.valueOf(this.uuid).equals(uuid) && String.valueOf(this.name).equals(name);
     }
 
     public interface ReactionChangeListener {

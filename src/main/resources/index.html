@@ -127,7 +127,6 @@
     </div>
 </div>
 
-
 <script>
     function openModal(title, content) {
         let openGeneralModalButton = document.getElementById('openGeneralModalButton');
@@ -137,13 +136,17 @@
         modalTitle.innerText = title;
         modalContent.innerText = content;
 
-        openGeneralModalButton.click();
+        let generalModal = document.getElementById('generalModal');
+        if (generalModal.style.display !== 'block') {
+            openGeneralModalButton.click();
+        }
     }
 
     function sendMessage(content) {
         let message = {
             content: content,
             from: username,
+            uuid: deviceUUID,
             admin: adminPassword
         };
         console.log('sent message: ' + JSON.stringify(message));
@@ -153,7 +156,7 @@
     function socketCallback(event) {
         console.log('Message from server: ' + event.data);
         let message = JSON.parse(event.data);
-        if (message.to !== username && message.to !== 'ALL_USERS') return;
+        if ((message.to !== username || message.toUUID !== deviceUUID) && message.to !== 'ALL_USERS') return;
         if (message.content.type) {
             switch (message.content.type) {
                 case "updateReactions":
@@ -264,37 +267,48 @@
         let container = document.getElementById('user-entry-container');
         for (let user of users) {
             let currentUsername = user.name;
+            let currentUserUUID = user.uuid;
             let reaction = user.reaction;
             let handRaisedIndex = user.handRaisedIndex;
             let reactionLastChanged = user.reactionLastChanged;
 
-            let entry = container.querySelector('[data-username="' + currentUsername + '"]');
-            if (entry) {
-                entry.dataset.lastUpdated = reactionLastChanged;
-                let element = entry.querySelector('.reaction-emote');
+            // query selector where the username and uuid are matching
+            let userEntry = container.querySelector('[data-username="' + currentUsername + '"][data-uuid="' + currentUserUUID + '"]');
+            if (userEntry) {
+                userEntry.dataset.lastUpdated = reactionLastChanged;
+                let element = userEntry.querySelector('.reaction-emote');
                 element.firstChild.innerText = reaction.emote;
-                let userNameElement = entry.querySelector('.username');
+                let userNameElement = userEntry.querySelector('.username');
 
                 removeAllChildren(userNameElement);
 
-                let usernameHandRaisedElement = makeUsernameHandRaised(currentUsername, handRaisedIndex);
+                let usernameHandRaisedElement = makeUsernameHandRaised(currentUsername, currentUserUUID, handRaisedIndex);
                 userNameElement.appendChild(usernameHandRaisedElement);
 
                 let sendMessageToUser = document.createElement('span');
                 sendMessageToUser.className = 'ml-1 clickable admin-only hidden';
-                sendMessageToUser.innerText = '📧';
+                sendMessageToUser.innerText = String.fromCodePoint(0x1F4E7);
                 sendMessageToUser.addEventListener('click', function () {
                     let input = prompt('Enter message to send to ' + currentUsername);
                     if (input) {
-                        let message = {type: 'adminMessage', 'to': currentUsername, 'message': input, 'from': username};
+                        let message = {
+                            type: 'adminMessage',
+                            'userName': currentUsername,
+                            'userUUID': currentUserUUID,
+                            'message': input,
+                            'from': username
+                        };
                         sendMessage(message);
                     }
                 });
                 userNameElement.appendChild(sendMessageToUser);
             } else {
-                entry = document.createElement('tr');
-                entry.dataset.username = currentUsername;
-                entry.dataset.lastUpdated = reactionLastChanged;
+                userEntry = document.createElement('tr');
+                userEntry.dataset.username = currentUsername;
+                userEntry.dataset.uuid = currentUserUUID;
+                userEntry.dataset.lastUpdated = reactionLastChanged;
+
+                let userColor = generateSeededSaturatedColor(currentUserUUID + currentUsername);
 
                 let emote = document.createElement('td');
                 emote.className = 'reaction-emote';
@@ -303,13 +317,14 @@
                 emote.appendChild(emoteElement);
                 makeTooltip(emoteElement, fromNow(reactionLastChanged), 'right');
                 emote.addEventListener('mouseenter', function () {
-                    let asInt = parseInt(entry.dataset.lastUpdated);
+                    let asInt = parseInt(userEntry.dataset.lastUpdated);
                     makeTooltip(emoteElement, fromNow(asInt), 'right');
                 });
 
                 let usernameCell = document.createElement('td');
                 usernameCell.className = 'username';
-                let usernameHandRaisedElement = makeUsernameHandRaised(currentUsername, handRaisedIndex);
+                usernameCell.style.color = userColor;
+                let usernameHandRaisedElement = makeUsernameHandRaised(currentUsername, currentUserUUID, handRaisedIndex);
                 usernameCell.appendChild(usernameHandRaisedElement);
 
                 let sendMessageToUser = document.createElement('span');
@@ -318,15 +333,21 @@
                 sendMessageToUser.addEventListener('click', function () {
                     let input = prompt('Enter message to send to ' + currentUsername);
                     if (input) {
-                        let message = {type: 'adminMessage', 'to': currentUsername, 'message': input, 'from': username};
+                        let message = {
+                            type: 'adminMessage',
+                            'userName': currentUsername,
+                            'userUUID': currentUserUUID,
+                            'message': input,
+                            'from': username
+                        };
                         sendMessage(message);
                     }
                 });
                 usernameCell.appendChild(sendMessageToUser);
 
-                entry.appendChild(emote);
-                entry.appendChild(usernameCell);
-                container.appendChild(entry);
+                userEntry.appendChild(emote);
+                userEntry.appendChild(usernameCell);
+                container.appendChild(userEntry);
             }
 
             let entries = Array.from(container.querySelectorAll('tr'));
@@ -367,8 +388,8 @@
         }
     }
 
-    function makeUsernameHandRaised(username, handRaiseIndex) {
-        let usernameElement = document.createElement('span');
+    function makeUsernameHandRaised(username, uuid, handRaiseIndex) {
+        let usernameElement = document.createElement('b');
         if (handRaiseIndex <= 0) {
             usernameElement.innerText = username;
         } else {
@@ -379,7 +400,7 @@
             let handEmoji = '\u270B';
             handRaiseElement.innerText = handEmoji + ' (' + handRaiseIndex + ')';
             handRaiseElement.addEventListener('click', function () {
-                let message = {type: 'adminRemoveHandRaise', 'removeName': username};
+                let message = {type: 'adminRemoveHandRaise', 'userUUID': uuid, 'userName': username};
                 sendMessage(message);
             });
             usernameElement.appendChild(handRaiseElement);
@@ -580,7 +601,7 @@
         document.getElementById('adminMessageToAllUsers').addEventListener('click', function () {
             let input = prompt('Enter message to send to all users');
             if (input) {
-                let message = {type: 'adminMessage', 'to': 'ALL_USERS', 'message': input, 'from': username};
+                let message = {type: 'adminMessage', 'userUUID': 'ALL_USERS', 'message': input, 'from': username};
                 sendMessage(message);
             }
         });
@@ -632,6 +653,34 @@
         }
     }
 
+    function generateSeededSaturatedColor(seed) {
+        let hash = 0;
+        for (let i = 0; i < seed.length; i++) {
+            hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        hash = Math.abs(hash);
+
+        let hue = hash % 360;
+        let saturation = 0.7;
+        let lightness = 0.7;
+
+        console.log(hue, saturation, lightness);
+
+        let hsv2rgb1 = hsv2rgb(hue, saturation, lightness);
+        let r = Math.round(hsv2rgb1[0] * 255);
+        let g = Math.round(hsv2rgb1[1] * 255);
+        let b = Math.round(hsv2rgb1[2] * 255);
+
+        console.log(r, g, b);
+
+        return 'rgb(' + r + ',' + g + ',' + b + ')';
+    }
+
+    function hsv2rgb(h, s, v) {
+        let f = (n, k = (n + h / 60) % 6) => v - v * s * Math.max(Math.min(k, 4 - k, 1), 0);
+        return [f(5), f(3), f(1)];
+    }
+
     let socket;
     let adminPassword = 'NO_PASSWORD';
     let adminCorrect = false;
@@ -643,6 +692,19 @@
         document.getElementById('storeUsernameBetweenSessionsToggle').checked = true;
     } else {
         username = 'anonymous user ' + Math.floor(Math.random() * 100);
+    }
+    let deviceUUID = localStorage.getItem('deviceUUID');
+
+    function uuidv4() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            let r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    if (!deviceUUID) {
+        deviceUUID = uuidv4();
+        localStorage.setItem('deviceUUID', deviceUUID);
     }
 
     initialize();
