@@ -14,7 +14,7 @@ public class Reaction {
             new Reaction("Slower", "\uD83D\uDC22"),
             new Reaction("Faster", "\uD83D\uDC07"),
             new Reaction("Coffee Break", "\u2615"),
-            new Reaction("Checkmark", "\u2714️"),
+            new Reaction("Checkmark", "\u2714"),
             new Reaction("Cross", "\u274C"),
             new Reaction("Answer 1", "\u0031\uFE0F\u20E3"),
             new Reaction("Answer 2", "\u0032\uFE0F\u20E3"),
