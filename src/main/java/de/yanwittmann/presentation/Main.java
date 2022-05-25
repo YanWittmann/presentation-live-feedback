@@ -3,8 +3,10 @@ package de.yanwittmann.presentation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.Desktop;
 import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.net.URL;
 import java.util.Properties;
 
 public class Main {
@@ -59,9 +61,6 @@ public class Main {
         }
         manager.startupServer(httpServerContext);
 
-        Thread.sleep(2000);
-        LOG.info("Commands available: [exit, password, ports]");
-
         // read user input
         while (true) {
             BufferedInputStream in = new BufferedInputStream(System.in);
@@ -85,6 +84,12 @@ public class Main {
                 case "port":
                     LOG.info("WebSocket port is [{}]", webSocketPort);
                     LOG.info("HTTP port is [{}]", httpServerPort);
+                    break;
+                case "open":
+                case "access":
+                    URL url = new URL("http://localhost:" + httpServerPort + httpServerContext);
+                    LOG.info("Opening URL [{}]", url);
+                    Desktop.getDesktop().browse(url.toURI());
                     break;
                 default:
                     LOG.info("Unknown command [{}]", input);

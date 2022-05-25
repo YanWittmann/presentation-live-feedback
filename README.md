@@ -20,13 +20,16 @@ and run it using at least Java 11.
 
 Command line arguments:
 
-- `ws` `webSocketPort`: port to use for the web socket server. Default is 8081.
-- `hs` `httpPort`: port to use for the http server. Default is 8080.
-- `pw` `password`: password to use for the admin. Default is a random alphanumeric string. In the running command line
-  process, type `password` to print the admin password.
-- `ctx` `context` `path`: path of the http server. Default is `/`.
+- `ws` `webSocketPort`: port to use for the web socket server. Default is 8081
+- `hs` `httpPort`: port to use for the http server. Default is 8080
+- `pw` `password`: password to use for the admin. Default is a random alphanumeric string
+- `ctx` `context` `path`: path of the http server. Default is `/`
 
-Use `exit` to exit the application.
+In the running application process:
+
+- use `password` to print the admin password
+- use `open` to open the application using localhost in the browser
+- use `exit` to exit the application
 
 Access the web interface at http://localhost:8080/ or your specified port/path respectively.  
 If you want to be able to access the web interface from another machine, simply open both ports in your firewall and use
