@@ -28,6 +28,7 @@ public class Manager {
     private final List<User> users = new ArrayList<>();
 
     private final String adminPassword;
+    private long countToTimeTimer = -1;
 
     public Manager(int webSocketPort, int httpPort) {
         this.webSocketPort = webSocketPort;
@@ -96,6 +97,7 @@ public class Manager {
                 if (content.equals("register")) {
                     broadcastToAllUsers(generateReactionsMessage());
                     broadcastToAllUsers(generateUserInformationMessage());
+                    sendMessageToUser(user, generateTimerInformationMessage());
                 } else if (content.startsWith("{")) {
                     JSONObject messageJson = new JSONObject(content);
                     switch (messageJson.optString("type", "")) {
@@ -134,12 +136,23 @@ public class Manager {
                                 sendMessageToUser(user, new JSONObject().put("type", "modal").put("title", "Unauthorized").put("message", "You do not have the permission to perform this action."));
                             }
                             break;
+                        case "adminCreateTimer":
+                            if (adminPasswordCorrect) {
+                                long countToTime = messageJson.optLong("countToTime", -1);
+                                if (countToTime > 0) {
+                                    countToTimeTimer = countToTime;
+                                    broadcastToAllUsers(generateTimerInformationMessage());
+                                }
+                            } else {
+                                sendMessageToUser(user, new JSONObject().put("type", "modal").put("title", "Unauthorized").put("message", "You do not have the permission to perform this action."));
+                            }
+                            break;
                         case "adminMessage":
                             if (adminPasswordCorrect) {
                                 String sendMessage = messageJson.optString("message", null);
                                 String toUserUUID = messageJson.optString("userUUID", null);
                                 String toUserName = messageJson.optString("userName", null);
-                                        String fromUser = messageJson.optString("from", null);
+                                String fromUser = messageJson.optString("from", null);
                                 if (sendMessage != null && toUserUUID != null && fromUser != null) {
                                     JSONObject sendMessageJson = new JSONObject().put("type", "modal").put("title", "Message from " + fromUser).put("message", sendMessage);
                                     if (toUserUUID.equals("ALL_USERS")) {
@@ -267,6 +280,18 @@ public class Manager {
         return new JSONObject()
                 .put("type", "updateUsers")
                 .put("users", users.stream().map(User::toJson).collect(Collectors.toList()));
+    }
+
+    private JSONObject generateTimerInformationMessage() {
+        if (countToTimeTimer <= 0) {
+            return new JSONObject()
+                    .put("type", "updateTimer")
+                    .put("countToTime", System.currentTimeMillis());
+        } else {
+            return new JSONObject()
+                    .put("type", "updateTimer")
+                    .put("countToTime", countToTimeTimer);
+        }
     }
 
 

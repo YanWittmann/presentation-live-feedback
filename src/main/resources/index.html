@@ -64,23 +64,32 @@
 </a>
 
 <div class="container">
-    <table id="user-table" class="table table-hover hidden">
-        <thead>
-        <tr>
-            <th scope="col" class="w-10">Status</th>
-            <th scope="col">Name</th>
-        </tr>
-        </thead>
-        <tbody id="user-entry-container"></tbody>
-    </table>
+    <div id="session-view" class="hidden">
+        <table id="user-table" class="table table-hover">
+            <thead>
+            <tr>
+                <th scope="col" class="w-10">Status</th>
+                <th scope="col">Name</th>
+            </tr>
+            </thead>
+            <tbody id="user-entry-container"></tbody>
+        </table>
 
-    <div id="reaction-button-container" class="hidden"></div>
-    <div id="other-user-actions-container" class="hidden">
-        <button id="hand-raise-button" class="btn btn-primary">&#x270B;</button>
-        <button id="adminClearAllHandRaise" class="btn btn-primary admin-only hidden">Clear all &#x270B;</button>
-        <button id="adminClearAllEmotes" class="btn btn-primary admin-only hidden">Clear all Reactions</button>
-        <button id="adminMessageToAllUsers" class="btn btn-primary admin-only hidden">&#x1F4E7; to all</button>
-        <div id="adminReactionCounts" class="admin-only hidden"></div>
+        <div id="reaction-button-container"></div>
+        <div id="other-user-actions-container">
+            <button id="hand-raise-button" class="btn btn-primary">&#x270B;</button>
+            <button id="adminClearAllHandRaise" class="btn btn-primary admin-only hidden">Clear all &#x270B;</button>
+            <button id="adminClearAllEmotes" class="btn btn-primary admin-only hidden">Clear all Reactions</button>
+            <button id="adminMessageToAllUsers" class="btn btn-primary admin-only hidden">&#x1F4E7; to all</button>
+            <button id="adminCreateTimer" class="btn btn-primary admin-only hidden">Create timer</button>
+            <div id="adminReactionCounts" class="admin-only hidden"></div>
+        </div>
+
+        <div class="d-flex justify-content-center">
+            <div id="timer-container" class="card p-3 hidden">
+                <h1 id="timer-text" class="m-1">00:00:00</h1>
+            </div>
+        </div>
     </div>
 
     <div id="login-form">
@@ -128,6 +137,72 @@
 </div>
 
 <script>
+    function setTimerVisible(visible) {
+        const timerContainer = document.getElementById('timer-container');
+        const timerText = document.getElementById('timer-text');
+        if (visible) {
+            timerContainer.classList.remove('hidden');
+            timerText.classList.remove('hidden');
+        } else {
+            timerContainer.classList.add('hidden');
+            timerText.classList.add('hidden');
+        }
+    }
+
+    let timerDestTime = -1;
+
+    function setTimerValueShowAndActivate(value) {
+        timerDestTime = value;
+        const timerText = document.getElementById('timer-text');
+        let diff = value - Date.now();
+        const timeRemaining = new Date(diff);
+        const hours = timeRemaining.getUTCHours();
+        const minutes = timeRemaining.getUTCMinutes();
+        const seconds = timeRemaining.getUTCSeconds();
+        if ((hours <= 0 && minutes <= 0 && seconds <= 0) || diff <= 0) {
+            deactivateTimer();
+            setTimerVisible(false);
+        } else {
+            timerText.innerText = `${hours}:${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+            activateTimer();
+            setTimerVisible(true);
+        }
+    }
+
+    let timerInterval;
+
+    function activateTimer() {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+        }
+        const timerText = document.getElementById('timer-text');
+        timerText.style.color = '#343638';
+        timerInterval = setInterval(() => {
+            let diff = timerDestTime - Date.now();
+            const timeRemaining = new Date(diff);
+            const hours = timeRemaining.getUTCHours();
+            const minutes = timeRemaining.getUTCMinutes();
+            const seconds = timeRemaining.getUTCSeconds();
+            if (diff < 1000) {
+                timerText.innerText = `0:00:00`;
+                deactivateTimer();
+                setTimeout(() => {
+                    if (timerText.innerText === '0:00:00') {
+                        setTimerVisible(false);
+                    }
+                }, 8000);
+            } else {
+                timerText.innerText = `${hours}:${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+            }
+        }, 500);
+    }
+
+    function deactivateTimer() {
+        const timerText = document.getElementById('timer-text');
+        timerText.style.color = '#ff4b4b';
+        clearInterval(timerInterval);
+    }
+
     function openModal(title, content) {
         let openGeneralModalButton = document.getElementById('openGeneralModalButton');
         let modalTitle = document.getElementById('generalModalTitle');
@@ -174,6 +249,10 @@
                     let title = message.content.title;
                     let content = message.content.message;
                     openModal(title, content);
+                    break;
+                case "updateTimer":
+                    let countToTime = message.content.countToTime;
+                    setTimerValueShowAndActivate(countToTime);
                     break;
             }
         }
@@ -606,6 +685,32 @@
             }
         });
 
+        document.getElementById('adminCreateTimer').addEventListener('click', function () {
+            let input = prompt('How long should the timer be? (HH:MM:SS)');
+            if (input) {
+                let time = input.split(':');
+                if (time.length !== 3) {
+                    openModal('Error', 'Please enter a valid time in HH:MM:SS');
+                    return;
+                }
+                let hours = parseInt(time[0]);
+                let minutes = parseInt(time[1]);
+                let seconds = parseInt(time[2]);
+                if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) {
+                    openModal('Error', 'All time values must be numbers');
+                    return;
+                }
+                if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) {
+                    openModal('Error', 'Number of hours, minutes, and seconds must be between 0 and 23, 0 and 59, and 0 and 59, respectively');
+                    return;
+                }
+                let utcMilliseconds = (hours * 60 * 60 + minutes * 60 + seconds) * 1000;
+                let countToUTCMilliseconds = Date.now() + utcMilliseconds;
+                let message = {type: 'adminCreateTimer', 'countToTime': countToUTCMilliseconds};
+                sendMessage(message);
+            }
+        });
+
         document.getElementById('hand-raise-button').addEventListener('click', function () {
             sendMessage({type: 'handRaiseToggle'});
         });
@@ -621,12 +726,8 @@
         let loginForm = document.getElementById('login-form');
         loginForm.classList.remove('hidden');
 
-        let reactionButtonContainer = document.getElementById('reaction-button-container');
-        let otherUserActionsContainer = document.getElementById('other-user-actions-container');
-        let userTable = document.getElementById('user-table');
-        reactionButtonContainer.classList.add('hidden');
-        otherUserActionsContainer.classList.add('hidden');
-        userTable.classList.add('hidden');
+        let sessionView = document.getElementById('session-view');
+        sessionView.classList.add('hidden');
     }
 
     function setSessionActive() {
@@ -634,12 +735,8 @@
         let loginForm = document.getElementById('login-form');
         loginForm.classList.add('hidden');
 
-        let reactionButtonContainer = document.getElementById('reaction-button-container');
-        let otherUserActionsContainer = document.getElementById('other-user-actions-container');
-        let userTable = document.getElementById('user-table');
-        reactionButtonContainer.classList.remove('hidden');
-        otherUserActionsContainer.classList.remove('hidden');
-        userTable.classList.remove('hidden');
+        let sessionView = document.getElementById('session-view');
+        sessionView.classList.remove('hidden');
     }
 
     function setAdminEnabled() {
@@ -664,14 +761,10 @@
         let saturation = 0.7;
         let lightness = 0.7;
 
-        console.log(hue, saturation, lightness);
-
         let hsv2rgb1 = hsv2rgb(hue, saturation, lightness);
         let r = Math.round(hsv2rgb1[0] * 255);
         let g = Math.round(hsv2rgb1[1] * 255);
         let b = Math.round(hsv2rgb1[2] * 255);
-
-        console.log(r, g, b);
 
         return 'rgb(' + r + ',' + g + ',' + b + ')';
     }

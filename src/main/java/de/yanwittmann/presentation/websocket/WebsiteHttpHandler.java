@@ -30,10 +30,7 @@ public class WebsiteHttpHandler implements HttpHandler {
         exchange.getResponseHeaders().set("Content-Type", "text/html");
         exchange.getResponseHeaders().set("WebSocket-Address", manager.getWebSocketPort() + "/events"); // e.g. ws://localhost:8080/events
 
-        StringBuilder response = new StringBuilder();
-        response.append(readResource("index.html"));
-
-        byte[] responseBytes = response.toString().getBytes(StandardCharsets.UTF_8);
+        byte[] responseBytes = readResource("index.html").getBytes(StandardCharsets.UTF_8);
 
         exchange.sendResponseHeaders(200, responseBytes.length);
         OutputStream out = exchange.getResponseBody();
