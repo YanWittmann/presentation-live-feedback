@@ -160,6 +160,8 @@ public class Manager {
                                     users.remove(foundUser);
                                     broadcastToAllUsers(new JSONObject().put("type", "removeUsers").put("users", new JSONArray().put(foundUser.toJson())));
                                     sendMessageToUser(foundUser, new JSONObject().put("type", "leaveSession").put("message", "You have been removed from the session."));
+                                    reorderHandRaised();
+                                    broadcastToAllUsers(generateUserInformationMessage());
                                 } else {
                                     sendMessageToUser(user, new JSONObject().put("type", "modal").put("title", "User not found").put("message", "The user you are trying to remove does not exist."));
                                 }
