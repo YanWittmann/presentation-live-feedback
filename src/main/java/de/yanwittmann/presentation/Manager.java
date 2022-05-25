@@ -56,7 +56,7 @@ public class Manager {
         return sb.toString();
     }
 
-    public void startupServer() {
+    public void startupServer(String path) {
         EventSocket.addUserMessageListener(this::onUserMessage);
 
         new Thread(() -> {
@@ -70,7 +70,7 @@ public class Manager {
 
         try {
             httpServer = HttpServer.create(new InetSocketAddress(httpPort), 0);
-            httpServer.createContext("/presentation", new WebsiteHttpHandler(this));
+            httpServer.createContext(path, new WebsiteHttpHandler(this));
             httpServer.setExecutor(null);
             httpServer.start();
         } catch (IOException e) {

@@ -15,27 +15,49 @@ public class Main {
         logVersion();
 
         // get the -ws and -hs parameters
-        int ws = 8080;
-        int hs = 8000;
+        int webSocketPort = 8081;
+        int httpServerPort = 8080;
         String password = null;
+        String httpServerContext = "/";
         for (String arg : args) {
-            if (arg.startsWith("-ws=")) {
-                ws = Integer.parseInt(arg.substring(4));
-            } else if (arg.startsWith("-hs=")) {
-                hs = Integer.parseInt(arg.substring(4));
-            } else if (arg.startsWith("-pw=")) {
-                password = arg.substring(4);
+            if (arg.contains("=") && arg.length() > 2) {
+                String key = arg.substring(1, arg.indexOf('='));
+                String value = arg.substring(arg.indexOf('=') + 1);
+                switch (key) {
+                    case "ws":
+                    case "webSocketPort":
+                        webSocketPort = Integer.parseInt(value);
+                        break;
+                    case "hs":
+                    case "httpPort":
+                        httpServerPort = Integer.parseInt(value);
+                        break;
+                    case "pw":
+                    case "password":
+                        password = value;
+                        break;
+                    case "ctx":
+                    case "path":
+                    case "context":
+                        httpServerContext = value;
+                        if (!httpServerContext.startsWith("/")) {
+                            httpServerContext = "/" + httpServerContext;
+                        }
+                        break;
+                    default:
+                        LOG.warn("Unknown parameter: {}", arg);
+                }
             }
         }
 
 
         final Manager manager;
         if (password != null) {
-            manager = new Manager(ws, hs, password);
+            manager = new Manager(webSocketPort, httpServerPort, password);
         } else {
-            manager = new Manager(ws, hs);
+            manager = new Manager(webSocketPort, httpServerPort);
         }
-        manager.startupServer();
+        manager.startupServer(httpServerContext);
 
         Thread.sleep(2000);
         LOG.info("Commands available: [exit, password, ports]");
@@ -61,8 +83,8 @@ public class Main {
                     break;
                 case "ports":
                 case "port":
-                    LOG.info("WebSocket port is [{}]", ws);
-                    LOG.info("HTTP port is [{}]", hs);
+                    LOG.info("WebSocket port is [{}]", webSocketPort);
+                    LOG.info("HTTP port is [{}]", httpServerPort);
                     break;
                 default:
                     LOG.info("Unknown command [{}]", input);
