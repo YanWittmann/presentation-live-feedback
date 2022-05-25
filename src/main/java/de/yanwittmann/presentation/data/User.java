@@ -1,10 +1,12 @@
 package de.yanwittmann.presentation.data;
 
+import de.yanwittmann.presentation.websocket.WebsiteHttpHandler;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
+import java.util.Random;
 import java.util.Set;
 
 public class User {
@@ -89,6 +91,7 @@ public class User {
         json.put("reaction", reaction.toJson());
         json.put("reactionLastChanged", reactionLastChanged);
         json.put("handRaisedIndex", handRaisedIndex);
+        json.put("spectator", spectator);
         return json;
     }
 

@@ -79,13 +79,18 @@
             <div id="reaction-button-container"></div>
             <div id="other-user-actions-container">
                 <button id="hand-raise-button" class="btn btn-primary m-1">&#x270B;</button>
-                <button id="adminClearAllHandRaise" class="btn btn-primary m-1 admin-only hidden">Clear all &#x270B;
+                <button id="adminClearAllHandRaise" class="btn btn-primary m-1 admin-only hidden">
+                    Clear all &#x270B;
                 </button>
-                <button id="adminClearAllEmotes" class="btn btn-primary m-1 admin-only hidden">Clear all Reactions
+                <button id="adminClearAllEmotes" class="btn btn-primary m-1 admin-only hidden">
+                    Clear all Reactions
                 </button>
-                <button id="adminMessageToAllUsers" class="btn btn-primary m-1 admin-only hidden">&#x1F4E7; to all
+                <button id="adminMessageToAllUsers" class="btn btn-primary m-1 admin-only hidden">
+                    &#x1F4E7; to all
                 </button>
-                <button id="adminCreateTimer" class="btn btn-primary m-1 admin-only hidden">Create timer</button>
+                <button id="adminCreateTimer" class="btn btn-primary m-1 admin-only hidden">
+                    Create timer
+                </button>
                 <div id="adminReactionCounts" class="admin-only hidden"></div>
             </div>
         </div>
@@ -251,6 +256,7 @@
                     adminCorrect = message.content.isCorrect;
                     console.log('Admin password correct:', adminCorrect);
                     setAdminEnabled();
+                    updateUserEntries([]);
                     break;
                 case "modal":
                     let title = message.content.title;
@@ -260,6 +266,16 @@
                 case "updateTimer":
                     let countToTime = message.content.countToTime;
                     setTimerValueShowAndActivate(countToTime);
+                    break;
+                case "removeUsers":
+                    removeUserEntries(message.content.users);
+                    break;
+                case "leaveSession":
+                    setFormInputSessionActive();
+                    socket.close();
+                    setTimeout(() => {
+                        openModal('Session over', message.content.message);
+                    }, 500);
                     break;
             }
         }
@@ -353,110 +369,41 @@
         setAdminEnabled();
     }
 
+    let cachedSpectatorUsers = [];
+
     function updateUserEntries(users) {
         let container = document.getElementById('user-entry-container');
         for (let user of users) {
-            let currentUsername = user.name;
-            let currentUserUUID = user.uuid;
-            let reaction = user.reaction;
-            let handRaisedIndex = user.handRaisedIndex;
-            let reactionLastChanged = user.reactionLastChanged;
-
-            // query selector where the username and uuid are matching
-            let userEntry = container.querySelector('[data-username="' + currentUsername + '"][data-uuid="' + currentUserUUID + '"]');
-            if (userEntry) {
-                userEntry.dataset.lastUpdated = reactionLastChanged;
-                let element = userEntry.querySelector('.reaction-emote');
-                element.firstChild.innerText = reaction.emote;
-                let userNameElement = userEntry.querySelector('.username');
-
-                removeAllChildren(userNameElement);
-
-                let usernameHandRaisedElement = makeUsernameHandRaised(currentUsername, currentUserUUID, handRaisedIndex);
-                userNameElement.appendChild(usernameHandRaisedElement);
-
-                let sendMessageToUser = document.createElement('span');
-                sendMessageToUser.className = 'ml-1 clickable admin-only hidden';
-                sendMessageToUser.innerText = String.fromCodePoint(0x1F4E7);
-                sendMessageToUser.addEventListener('click', function () {
-                    let input = prompt('Enter message to send to ' + currentUsername);
-                    if (input) {
-                        let message = {
-                            type: 'adminMessage',
-                            'userName': currentUsername,
-                            'userUUID': currentUserUUID,
-                            'message': input,
-                            'from': username
-                        };
-                        sendMessage(message);
-                    }
-                });
-                userNameElement.appendChild(sendMessageToUser);
-            } else {
-                userEntry = document.createElement('tr');
-                userEntry.dataset.username = currentUsername;
-                userEntry.dataset.uuid = currentUserUUID;
-                userEntry.dataset.lastUpdated = reactionLastChanged;
-
-                let userColor = generateSeededSaturatedColor(currentUserUUID + currentUsername);
-
-                let emote = document.createElement('td');
-                emote.className = 'reaction-emote';
-                let emoteElement = document.createElement('span');
-                emoteElement.innerText = reaction.emote;
-                emote.appendChild(emoteElement);
-                makeTooltip(emoteElement, fromNow(reactionLastChanged), 'right');
-                emote.addEventListener('mouseenter', function () {
-                    let asInt = parseInt(userEntry.dataset.lastUpdated);
-                    makeTooltip(emoteElement, fromNow(asInt), 'right');
-                });
-
-                let usernameCell = document.createElement('td');
-                usernameCell.className = 'username';
-                usernameCell.style.color = userColor;
-                let usernameHandRaisedElement = makeUsernameHandRaised(currentUsername, currentUserUUID, handRaisedIndex);
-                usernameCell.appendChild(usernameHandRaisedElement);
-
-                let sendMessageToUser = document.createElement('span');
-                sendMessageToUser.className = 'ml-1 clickable admin-only hidden';
-                sendMessageToUser.innerText = String.fromCodePoint(0x1F4E7);
-                sendMessageToUser.addEventListener('click', function () {
-                    let input = prompt('Enter message to send to ' + currentUsername);
-                    if (input) {
-                        let message = {
-                            type: 'adminMessage',
-                            'userName': currentUsername,
-                            'userUUID': currentUserUUID,
-                            'message': input,
-                            'from': username
-                        };
-                        sendMessage(message);
-                    }
-                });
-                usernameCell.appendChild(sendMessageToUser);
-
-                userEntry.appendChild(emote);
-                userEntry.appendChild(usernameCell);
-                container.appendChild(userEntry);
+            let userSpectator = user.spectator;
+            if (userSpectator && !adminCorrect) {
+                cachedSpectatorUsers.push(user);
+                continue;
             }
-
-            let entries = Array.from(container.querySelectorAll('tr'));
-            entries.sort(function (a, b) {
-                return b.dataset.lastUpdated - a.dataset.lastUpdated;
-            });
-            removeAllChildren(container);
-            for (let entry of entries) {
-                container.appendChild(entry);
-            }
-
-            updateTooltips();
-            setAdminEnabled();
+            createOrUpdateUserEntry(user, container);
         }
+
+        if (cachedSpectatorUsers.length > 0 && adminCorrect) {
+            for (let user of cachedSpectatorUsers) {
+                createOrUpdateUserEntry(user, container);
+            }
+            cachedSpectatorUsers = [];
+        }
+
+        let entries = Array.from(container.querySelectorAll('tr'));
+        entries.sort(function (a, b) {
+            return b.dataset.lastUpdated - a.dataset.lastUpdated;
+        });
+        removeAllChildren(container);
+        for (let entry of entries) {
+            container.appendChild(entry);
+        }
+
+        updateTooltips();
+        setAdminEnabled();
 
 
         let reactionCountsMap = new Map();
 
-        let entries = Array.from(container.querySelectorAll('tr'));
         for (let i = 0; i < entries.length; i++) {
             let reactionColumn = entries[i].querySelector('.reaction-emote');
             let reaction = reactionColumn.firstChild.innerText;
@@ -475,6 +422,138 @@
             badge.className = 'badge bg-secondary text-white m-2 p-2 fs-6';
             badge.innerText = count + ' ' + reaction;
             adminReactionCountsContainer.appendChild(badge);
+        }
+    }
+
+    function createOrUpdateUserEntry(user, container) {
+        let currentUsername = user.name;
+        let currentUserUUID = user.uuid;
+        let reaction = user.reaction;
+        let handRaisedIndex = user.handRaisedIndex;
+        let reactionLastChanged = user.reactionLastChanged;
+
+        // query selector where the username and uuid are matching
+        let userEntry = container.querySelector('[data-username="' + currentUsername + '"][data-uuid="' + currentUserUUID + '"]');
+        if (userEntry) {
+            userEntry.dataset.lastUpdated = reactionLastChanged;
+            let element = userEntry.querySelector('.reaction-emote');
+            element.firstChild.innerText = reaction.emote;
+            let userNameElement = userEntry.querySelector('.username');
+
+            removeAllChildren(userNameElement);
+
+            let usernameHandRaisedElement = makeUsernameHandRaised(currentUsername, currentUserUUID, handRaisedIndex);
+            userNameElement.appendChild(usernameHandRaisedElement);
+
+            let sendMessageToUser = document.createElement('span');
+            sendMessageToUser.className = 'ml-1 clickable admin-only hidden';
+            sendMessageToUser.innerText = String.fromCodePoint(0x1F4E7);
+            sendMessageToUser.addEventListener('click', function () {
+                let input = prompt('Enter message to send to ' + currentUsername);
+                if (input) {
+                    let message = {
+                        type: 'adminMessage',
+                        'userName': currentUsername,
+                        'userUUID': currentUserUUID,
+                        'message': input,
+                        'from': username
+                    };
+                    sendMessage(message);
+                }
+            });
+            userNameElement.appendChild(sendMessageToUser);
+
+            let removeUserFromSession = document.createElement('span');
+            removeUserFromSession.className = 'ml-1 clickable admin-only hidden';
+            removeUserFromSession.innerText = String.fromCodePoint(0x274C);
+            removeUserFromSession.addEventListener('click', function () {
+                let input = confirm('Are you sure you want to remove ' + currentUsername + ' from the session?');
+                if (input) {
+                    let message = {
+                        type: 'adminRemoveUser',
+                        'userName': currentUsername,
+                        'userUUID': currentUserUUID
+                    };
+                    sendMessage(message);
+                }
+            });
+            userNameElement.appendChild(removeUserFromSession);
+        } else {
+            userEntry = document.createElement('tr');
+            userEntry.dataset.username = currentUsername;
+            userEntry.dataset.uuid = currentUserUUID;
+            userEntry.dataset.lastUpdated = reactionLastChanged;
+
+            let userColor = generateSeededSaturatedColor(currentUserUUID + currentUsername);
+
+            let emote = document.createElement('td');
+            emote.className = 'reaction-emote';
+            let emoteElement = document.createElement('span');
+            emoteElement.innerText = reaction.emote;
+            emote.appendChild(emoteElement);
+            makeTooltip(emoteElement, fromNow(reactionLastChanged), 'right');
+            emote.addEventListener('mouseenter', function () {
+                let asInt = parseInt(userEntry.dataset.lastUpdated);
+                makeTooltip(emoteElement, fromNow(asInt), 'right');
+            });
+
+            let usernameCell = document.createElement('td');
+            usernameCell.className = 'username';
+            usernameCell.style.color = userColor;
+            let usernameHandRaisedElement = makeUsernameHandRaised(currentUsername, currentUserUUID, handRaisedIndex);
+            usernameCell.appendChild(usernameHandRaisedElement);
+
+            let sendMessageToUser = document.createElement('span');
+            sendMessageToUser.className = 'ml-1 clickable admin-only hidden';
+            sendMessageToUser.innerText = String.fromCodePoint(0x1F4E7);
+            sendMessageToUser.addEventListener('click', function () {
+                let input = prompt('Enter message to send to ' + currentUsername);
+                if (input) {
+                    let message = {
+                        type: 'adminMessage',
+                        'userName': currentUsername,
+                        'userUUID': currentUserUUID,
+                        'message': input,
+                        'from': username
+                    };
+                    sendMessage(message);
+                }
+            });
+            usernameCell.appendChild(sendMessageToUser);
+
+            let removeUserFromSession = document.createElement('span');
+            removeUserFromSession.className = 'ml-1 clickable admin-only hidden';
+            removeUserFromSession.innerText = String.fromCodePoint(0x274C);
+            removeUserFromSession.addEventListener('click', function () {
+                let input = confirm('Are you sure you want to remove ' + currentUsername + ' from the session?');
+                if (input) {
+                    let message = {
+                        type: 'adminRemoveUser',
+                        'userName': currentUsername,
+                        'userUUID': currentUserUUID
+                    };
+                    sendMessage(message);
+                }
+            });
+            usernameCell.appendChild(removeUserFromSession);
+
+            userEntry.appendChild(emote);
+            userEntry.appendChild(usernameCell);
+            container.appendChild(userEntry);
+        }
+    }
+
+    function removeUserEntries(users) {
+        let container = document.getElementById('user-entry-container');
+        let entries = Array.from(container.querySelectorAll('tr'));
+        for (let user of users) {
+            for (let userEntry of entries) {
+                if (userEntry.dataset.username === user.name && userEntry.dataset.uuid === user.uuid) {
+                    console.log('Removing user entry for', user.name, user.uuid, userEntry.dataset.username, userEntry.dataset.uuid);
+                    userEntry.remove();
+                    break;
+                }
+            }
         }
     }
 

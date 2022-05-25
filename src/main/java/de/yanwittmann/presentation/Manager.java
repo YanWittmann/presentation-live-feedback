@@ -153,6 +153,20 @@ public class Manager {
                                 sendMessageToUser(user, new JSONObject().put("type", "modal").put("title", "Unauthorized").put("message", "You do not have the permission to perform this action."));
                             }
                             break;
+                        case "adminRemoveUser":
+                            if (adminPasswordCorrect) {
+                                User foundUser = findUser(messageJson.optString("userUUID", ""), messageJson.optString("userName", ""));
+                                if (foundUser != null) {
+                                    users.remove(foundUser);
+                                    broadcastToAllUsers(new JSONObject().put("type", "removeUsers").put("users", new JSONArray().put(foundUser.toJson())));
+                                    sendMessageToUser(foundUser, new JSONObject().put("type", "leaveSession").put("message", "You have been removed from the session."));
+                                } else {
+                                    sendMessageToUser(user, new JSONObject().put("type", "modal").put("title", "User not found").put("message", "The user you are trying to remove does not exist."));
+                                }
+                            } else {
+                                sendMessageToUser(user, new JSONObject().put("type", "modal").put("title", "Unauthorized").put("message", "You do not have the permission to perform this action."));
+                            }
+                            break;
                         case "adminMessage":
                             if (adminPasswordCorrect) {
                                 String sendMessage = messageJson.optString("message", null);
@@ -285,7 +299,7 @@ public class Manager {
     private JSONObject generateUserInformationMessage() {
         return new JSONObject()
                 .put("type", "updateUsers")
-                .put("users", users.stream().filter(u -> !u.isSpectator()).map(User::toJson).collect(Collectors.toList()));
+                .put("users", users.stream().map(User::toJson).collect(Collectors.toList()));
     }
 
     private JSONObject generateTimerInformationMessage() {

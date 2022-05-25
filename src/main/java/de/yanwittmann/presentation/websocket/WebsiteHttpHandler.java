@@ -50,7 +50,7 @@ public class WebsiteHttpHandler implements HttpHandler {
         out.close();
     }
 
-    private static String readResource(String resource) {
+    public static String readResource(String resource) {
         InputStream inputStream = Main.class.getClassLoader().getResourceAsStream(resource);
         StringBuilder result = new StringBuilder();
         try {
