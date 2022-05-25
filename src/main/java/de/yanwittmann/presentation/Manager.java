@@ -95,6 +95,12 @@ public class Manager {
                 User user = findOrCreateUser(fromUUID, from);
 
                 if (content.equals("register")) {
+                    user.setSpectator(false);
+                    broadcastToAllUsers(generateReactionsMessage());
+                    broadcastToAllUsers(generateUserInformationMessage());
+                    sendMessageToUser(user, generateTimerInformationMessage());
+                } else if (content.equals("registerSpectator")) {
+                    user.setSpectator(true);
                     broadcastToAllUsers(generateReactionsMessage());
                     broadcastToAllUsers(generateUserInformationMessage());
                     sendMessageToUser(user, generateTimerInformationMessage());
@@ -279,7 +285,7 @@ public class Manager {
     private JSONObject generateUserInformationMessage() {
         return new JSONObject()
                 .put("type", "updateUsers")
-                .put("users", users.stream().map(User::toJson).collect(Collectors.toList()));
+                .put("users", users.stream().filter(u -> !u.isSpectator()).map(User::toJson).collect(Collectors.toList()));
     }
 
     private JSONObject generateTimerInformationMessage() {

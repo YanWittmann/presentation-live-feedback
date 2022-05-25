@@ -16,6 +16,7 @@ public class User {
     private Reaction reaction = Reaction.REACTIONS.get(0);
     private long reactionLastChanged = System.currentTimeMillis();
     private int handRaisedIndex = -1;
+    private boolean spectator = false;
 
     private Set<ReactionChangeListener> reactionChangeListeners = new HashSet<>();
     private Set<HandRaisedListener> handRaisedListeners = new HashSet<>();
@@ -96,6 +97,14 @@ public class User {
             return false;
         }
         return String.valueOf(this.uuid).equals(uuid) && String.valueOf(this.name).equals(name);
+    }
+
+    public void setSpectator(boolean spectator) {
+        this.spectator = spectator;
+    }
+
+    public boolean isSpectator() {
+        return spectator;
     }
 
     public interface ReactionChangeListener {

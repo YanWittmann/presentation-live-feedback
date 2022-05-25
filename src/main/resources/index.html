@@ -75,14 +75,19 @@
             <tbody id="user-entry-container"></tbody>
         </table>
 
-        <div id="reaction-button-container"></div>
-        <div id="other-user-actions-container">
-            <button id="hand-raise-button" class="btn btn-primary">&#x270B;</button>
-            <button id="adminClearAllHandRaise" class="btn btn-primary admin-only hidden">Clear all &#x270B;</button>
-            <button id="adminClearAllEmotes" class="btn btn-primary admin-only hidden">Clear all Reactions</button>
-            <button id="adminMessageToAllUsers" class="btn btn-primary admin-only hidden">&#x1F4E7; to all</button>
-            <button id="adminCreateTimer" class="btn btn-primary admin-only hidden">Create timer</button>
-            <div id="adminReactionCounts" class="admin-only hidden"></div>
+        <div class="spectator-hidden">
+            <div id="reaction-button-container"></div>
+            <div id="other-user-actions-container">
+                <button id="hand-raise-button" class="btn btn-primary m-1">&#x270B;</button>
+                <button id="adminClearAllHandRaise" class="btn btn-primary m-1 admin-only hidden">Clear all &#x270B;
+                </button>
+                <button id="adminClearAllEmotes" class="btn btn-primary m-1 admin-only hidden">Clear all Reactions
+                </button>
+                <button id="adminMessageToAllUsers" class="btn btn-primary m-1 admin-only hidden">&#x1F4E7; to all
+                </button>
+                <button id="adminCreateTimer" class="btn btn-primary m-1 admin-only hidden">Create timer</button>
+                <div id="adminReactionCounts" class="admin-only hidden"></div>
+            </div>
         </div>
 
         <div class="d-flex justify-content-center">
@@ -110,7 +115,8 @@
                 Store username between sessions
             </label>
         </div>
-        <button id="join-session-button" class="btn btn-primary">Join Session</button>
+        <button id="join-session-button" class="btn btn-primary m-2">Join Session</button>
+        <button id="join-session-spectator-button" class="btn btn-secondary m-2">Join as Spectator</button>
     </div>
 </div>
 
@@ -119,7 +125,8 @@
     Launch demo modal
 </button>
 
-<div class="modal fade" id="generalModal" tabindex="-1" aria-labelledby="generalModalTitle" aria-hidden="true">
+<div class="modal fade spectator-hidden" id="generalModal" tabindex="-1" aria-labelledby="generalModalTitle"
+     aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -279,7 +286,11 @@
             const socket = new WebSocket(websocketAddress);
 
             socket.addEventListener('open', function (event) {
-                sendMessage('register');
+                if (isSpectator) {
+                    sendMessage('registerSpectator');
+                } else {
+                    sendMessage('register');
+                }
             });
 
             socket.addEventListener('message', function (event) {
@@ -634,39 +645,61 @@
 
     let initializeSessionButtonActive = true;
 
-    function initialize() {
-        adminCorrect = false;
+    function joinButtonClicked() {
         let joinSessionButton = document.getElementById('join-session-button');
-        joinSessionButton.addEventListener('click', function () {
-            if (!initializeSessionButtonActive) return;
-            initializeSessionButtonActive = false;
-            joinSessionButton.classList.remove('btn-primary');
-            joinSessionButton.classList.add('btn-secondary');
-            joinSessionButton.setAttribute('disabled', 'disabled');
-            username = document.getElementById('inputUserName').value;
-            adminPassword = document.getElementById('adminPasswordInput').value;
-            if (username.length === 0) {
-                openModal('Error', 'Please enter a valid username');
-                setFormInputSessionActive();
-                return;
-            }
-            socket = initializeServerConnection();
+        let joinSessionSpectatorButton = document.getElementById('join-session-spectator-button');
 
-            if (adminPassword.length > 0) {
-                setTimeout(function () {
-                    sendMessage({type: 'isAdminPasswordCorrect'});
-                }, 1000);
-            }
+        if (!initializeSessionButtonActive) return;
+        initializeSessionButtonActive = false;
+        joinSessionButton.classList.remove('btn-primary');
+        joinSessionButton.classList.add('btn-secondary');
+        joinSessionButton.setAttribute('disabled', 'disabled');
+        joinSessionSpectatorButton.setAttribute('disabled', 'disabled');
 
+        username = document.getElementById('inputUserName').value;
+        if (isSpectator) {
+            username = 'Spectator ' + username + ' ' + Math.floor(Math.random() * 1000);
+        }
+
+        if (username.length === 0) {
+            openModal('Error', 'Please enter a valid username');
+            setFormInputSessionActive();
+            return;
+        }
+
+        adminPassword = document.getElementById('adminPasswordInput').value;
+
+        socket = initializeServerConnection();
+
+        if (adminPassword.length > 0) {
+            setTimeout(function () {
+                sendMessage({type: 'isAdminPasswordCorrect'});
+            }, 1000);
+        }
+
+        if (!isSpectator) {
             let storeUsernameBetweenSessionsToggle = document.getElementById('storeUsernameBetweenSessionsToggle');
             if (storeUsernameBetweenSessionsToggle.checked) {
                 localStorage.setItem('username', username);
             } else {
                 localStorage.removeItem('username');
             }
+        }
 
-            let userList = document.getElementById('user-entry-container');
-            removeAllChildren(userList);
+        let userList = document.getElementById('user-entry-container');
+        removeAllChildren(userList);
+    }
+
+    function initialize() {
+        adminCorrect = false;
+
+        document.getElementById('join-session-button').addEventListener('click', function () {
+            setSpectatorModeActive(false);
+            joinButtonClicked();
+        });
+        document.getElementById('join-session-spectator-button').addEventListener('click', function () {
+            setSpectatorModeActive(true);
+            joinButtonClicked();
         });
 
         document.getElementById('adminClearAllHandRaise').addEventListener('click', function () {
@@ -716,12 +749,26 @@
         });
     }
 
+    function setSpectatorModeActive(active) {
+        isSpectator = active;
+        let spectatorElements = document.getElementsByClassName('spectator-hidden');
+        for (let i = 0; i < spectatorElements.length; i++) {
+            if (active) {
+                spectatorElements[i].classList.add('hidden');
+            } else {
+                spectatorElements[i].classList.remove('hidden');
+            }
+        }
+    }
+
     function setFormInputSessionActive() {
         initializeSessionButtonActive = true;
         let joinSessionButton = document.getElementById('join-session-button');
         joinSessionButton.classList.remove('btn-secondary');
         joinSessionButton.classList.add('btn-primary');
         joinSessionButton.removeAttribute('disabled');
+        let joinSessionSpectatorButton = document.getElementById('join-session-spectator-button');
+        joinSessionSpectatorButton.removeAttribute('disabled');
 
         let loginForm = document.getElementById('login-form');
         loginForm.classList.remove('hidden');
@@ -777,6 +824,7 @@
     let socket;
     let adminPassword = 'NO_PASSWORD';
     let adminCorrect = false;
+    let isSpectator = false;
     let username;
     let localStorageUsername = localStorage.getItem('username');
     if (localStorageUsername) {
