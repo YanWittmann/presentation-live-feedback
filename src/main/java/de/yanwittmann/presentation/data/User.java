@@ -1,12 +1,10 @@
 package de.yanwittmann.presentation.data;
 
-import de.yanwittmann.presentation.websocket.WebsiteHttpHandler;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
-import java.util.Random;
 import java.util.Set;
 
 public class User {
@@ -27,6 +25,17 @@ public class User {
         this.uuid = uuid;
         this.name = name;
         LOG.info("Created user [{}]", name);
+    }
+
+    public static boolean isValidUsername(String from) {
+        if (from == null) {
+            return false;
+        } else if (from.length() == 0) {
+            return false;
+        } else if (from.length() > 25) {
+            return false;
+        }
+        return from.toLowerCase().matches("^[a-zA-Z\\d_ !?()äöüâàçéèêëîïôùûœ\n]+$");
     }
 
     public void setReaction(Reaction reaction) {

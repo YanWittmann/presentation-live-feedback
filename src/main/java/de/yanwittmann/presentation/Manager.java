@@ -31,15 +31,13 @@ public class Manager {
     private long countToTimeTimer = -1;
 
     public Manager(int webSocketPort, int httpPort) {
-        this.webSocketPort = webSocketPort;
-        this.httpPort = httpPort;
-        this.adminPassword = randomAlphanumericString(10);
+        this(webSocketPort, httpPort, null);
     }
 
     public Manager(int webSocketPort, int httpPort, String adminPassword) {
         this.webSocketPort = webSocketPort;
         this.httpPort = httpPort;
-        this.adminPassword = adminPassword;
+        this.adminPassword = adminPassword == null ? randomAlphanumericString(10) : adminPassword;
     }
 
     public String getAdminPassword() {
@@ -92,6 +90,14 @@ public class Manager {
             boolean adminPasswordCorrect = json.optString("admin", "").equals(adminPassword);
 
             if (fromUUID != null && from != null && content != null) {
+                if (!User.isValidUsername(from)) {
+                    LOG.warn("Invalid username: " + from);
+                    User user = new User(fromUUID, from);
+                    sendMessageToUser(user, new JSONObject().put("type", "modal").put("title", "Invalid username").put("message", "Invalid username."));
+                    removeUserFromSession(user, "Invalid username");
+                    return;
+                }
+
                 User user = findOrCreateUser(fromUUID, from);
 
                 if (content.equals("register")) {
@@ -157,11 +163,7 @@ public class Manager {
                             if (adminPasswordCorrect) {
                                 User foundUser = findUser(messageJson.optString("userUUID", ""), messageJson.optString("userName", ""));
                                 if (foundUser != null) {
-                                    users.remove(foundUser);
-                                    broadcastToAllUsers(new JSONObject().put("type", "removeUsers").put("users", new JSONArray().put(foundUser.toJson())));
-                                    sendMessageToUser(foundUser, new JSONObject().put("type", "leaveSession").put("message", "You have been removed from the session."));
-                                    reorderHandRaised();
-                                    broadcastToAllUsers(generateUserInformationMessage());
+                                    removeUserFromSession(foundUser, "Removed by admin");
                                 } else {
                                     sendMessageToUser(user, new JSONObject().put("type", "modal").put("title", "User not found").put("message", "The user you are trying to remove does not exist."));
                                 }
@@ -201,6 +203,14 @@ public class Manager {
         } else {
             LOG.warn("Received message is not a JSON Object {}", message);
         }
+    }
+
+    private void removeUserFromSession(User user, String reason) {
+        users.remove(user);
+        broadcastToAllUsers(new JSONObject().put("type", "removeUsers").put("users", new JSONArray().put(user.toJson())));
+        sendMessageToUser(user, new JSONObject().put("type", "leaveSession").put("message", "You have been removed from the session.\n" + (reason != null ? "Reason: " + reason : "")));
+        reorderHandRaised();
+        broadcastToAllUsers(generateUserInformationMessage());
     }
 
     public void onHandRaised(User user, int handRaisedIndex) {

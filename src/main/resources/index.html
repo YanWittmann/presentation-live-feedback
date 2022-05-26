@@ -40,6 +40,14 @@
         cursor: pointer;
     }
 
+    .status-row-element {
+        padding: 1px 0 2px 10px !important;
+    }
+
+    .status-row-element.username {
+        padding-top: 4px !important;
+    }
+
     #bottom-right-container {
         position: absolute;
         bottom: 0;
@@ -112,7 +120,7 @@
         <div class="mb-3">
             <label for="adminPasswordInput" class="form-label">Admin Password</label>
             <input type="password" class="form-control" id="adminPasswordInput">
-            <div id="emailHelp" class="form-text">Optional. Allows for more actions to be taken.</div>
+            <div id="adminPasswordInputHelpText" class="form-text">Optional. Allows for more actions to be taken.</div>
         </div>
         <div class="mb-3 form-check">
             <input type="checkbox" class="form-check-input" id="storeUsernameBetweenSessionsToggle">
@@ -487,8 +495,9 @@
             let userColor = generateSeededSaturatedColor(currentUserUUID + currentUsername);
 
             let emote = document.createElement('td');
-            emote.className = 'reaction-emote';
+            emote.className = 'reaction-emote status-row-element';
             let emoteElement = document.createElement('span');
+            emoteElement.classList.add('status-row-element');
             emoteElement.innerText = reaction.emote;
             emote.appendChild(emoteElement);
             makeTooltip(emoteElement, fromNow(reactionLastChanged), 'right');
@@ -498,7 +507,7 @@
             });
 
             let usernameCell = document.createElement('td');
-            usernameCell.className = 'username';
+            usernameCell.className = 'username status-row-element';
             usernameCell.style.color = userColor;
             let usernameHandRaisedElement = makeUsernameHandRaised(currentUsername, currentUserUUID, handRaisedIndex);
             usernameCell.appendChild(usernameHandRaisedElement);
@@ -736,14 +745,19 @@
         joinSessionSpectatorButton.setAttribute('disabled', 'disabled');
 
         username = document.getElementById('inputUserName').value;
-        if (isSpectator) {
-            username = 'Spectator ' + username + ' ' + Math.floor(Math.random() * 1000);
-        }
 
         if (username.length === 0) {
             openModal('Error', 'Please enter a valid username');
             setFormInputSessionActive();
             return;
+        } else if (username.length > 25) {
+            openModal('Error', 'Username is too long');
+            setFormInputSessionActive();
+            return;
+        }
+
+        if (isSpectator) {
+            username = 'Spectator ' + username + ' ' + Math.floor(Math.random() * 1000);
         }
 
         adminPassword = document.getElementById('adminPasswordInput').value;
@@ -780,6 +794,18 @@
             setSpectatorModeActive(true);
             joinButtonClicked();
         });
+        document.getElementById('inputUserName').addEventListener('keyup', function (event) {
+            if (event.keyCode === 13) {
+                setSpectatorModeActive(false);
+                joinButtonClicked();
+            }
+        });
+        document.getElementById('adminPasswordInput').addEventListener('keyup', function (event) {
+            if (event.keyCode === 13) {
+                setSpectatorModeActive(false);
+                joinButtonClicked();
+            }
+        });
 
         document.getElementById('adminClearAllHandRaise').addEventListener('click', function () {
             sendMessage({type: 'clearAllHandRaise'});
@@ -798,26 +824,13 @@
         });
 
         document.getElementById('adminCreateTimer').addEventListener('click', function () {
-            let input = prompt('How long should the timer be? (HH:MM:SS)');
+            let input = prompt('How long should the timer be? (allowed formats: HH:MM:SS, MM:SS, SS or \'HH hours MM minutes SS seconds\')');
             if (input) {
-                let time = input.split(':');
-                if (time.length !== 3) {
-                    openModal('Error', 'Please enter a valid time in HH:MM:SS');
+                let millis = extractMillisecondsTimeFromUserInput(input);
+                if (millis === -1) {
                     return;
                 }
-                let hours = parseInt(time[0]);
-                let minutes = parseInt(time[1]);
-                let seconds = parseInt(time[2]);
-                if (isNaN(hours) || isNaN(minutes) || isNaN(seconds)) {
-                    openModal('Error', 'All time values must be numbers');
-                    return;
-                }
-                if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59 || seconds < 0 || seconds > 59) {
-                    openModal('Error', 'Number of hours, minutes, and seconds must be between 0 and 23, 0 and 59, and 0 and 59, respectively');
-                    return;
-                }
-                let utcMilliseconds = (hours * 60 * 60 + minutes * 60 + seconds) * 1000;
-                let countToUTCMilliseconds = Date.now() + utcMilliseconds;
+                let countToUTCMilliseconds = Date.now() + millis + 1000;
                 let message = {type: 'adminCreateTimer', 'countToTime': countToUTCMilliseconds};
                 sendMessage(message);
             }
@@ -826,6 +839,86 @@
         document.getElementById('hand-raise-button').addEventListener('click', function () {
             sendMessage({type: 'handRaiseToggle'});
         });
+    }
+
+    function extractMillisecondsTimeFromUserInput(input) {
+        let hours = -1;
+        let minutes = -1;
+        let seconds = -1;
+
+        if (input.match(/^\d+$/)) {
+            hours = 0;
+            minutes = 0;
+            seconds = parseInt(input);
+        } else if (input.indexOf(':') === -1) {
+            let split = input.replace(/[^\dA-Za-z ]/g, '').toLowerCase().split(' ');
+            let currentMode = 'seconds';
+            for (let i = split.length - 1; i >= 0; i--) {
+                let word = split[i];
+                if (word === 'hours' || word === 'hour') {
+                    currentMode = 'hours';
+                } else if (word === 'minutes' || word === 'minute' || word === 'mins' || word === 'min') {
+                    currentMode = 'minutes';
+                } else if (word === 'seconds' || word === 'second' || word === 'secs' || word === 'sec') {
+                    currentMode = 'seconds';
+                } else if (!isNaN(word) || word.match(/^\d+$/)) {
+                    if (currentMode === 'hours') {
+                        hours = parseInt(word);
+                        if (minutes === -1) {
+                            minutes = 0;
+                        }
+                        if (seconds === -1) {
+                            seconds = 0;
+                        }
+                    } else if (currentMode === 'minutes') {
+                        minutes = parseInt(word);
+                        if (hours === -1) {
+                            hours = 0;
+                        }
+                        if (seconds === -1) {
+                            seconds = 0;
+                        }
+                    } else if (currentMode === 'seconds') {
+                        seconds = parseInt(word);
+                        if (hours === -1) {
+                            hours = 0;
+                        }
+                        if (minutes === -1) {
+                            minutes = 0;
+                        }
+                    }
+                }
+            }
+        } else {
+            let split = input.split(':');
+            if (split.length === 3) {
+                hours = parseInt(split[0]);
+                minutes = parseInt(split[1]);
+                seconds = parseInt(split[2]);
+            } else if (split.length === 2) {
+                hours = 0;
+                minutes = parseInt(split[0]);
+                seconds = parseInt(split[1]);
+            } else if (split.length === 1) {
+                hours = 0;
+                minutes = 0;
+                seconds = parseInt(split[0]);
+            } else {
+                openModal('Error', 'Please enter a valid time in HH:MM:SS');
+                return -1;
+            }
+        }
+
+        if (isNaN(hours) || isNaN(minutes) || isNaN(seconds) || (hours < 0 && minutes < 0 && seconds < 0)) {
+            openModal('Error', 'All time values must be numbers');
+            return -1;
+        }
+        if (hours > 23 || minutes > 60 || seconds > 60) {
+            openModal('Error', 'Time values must be less or equal to 23 hours, 60 minutes and 60 seconds');
+            return -1;
+        }
+
+        return hours * 3600000 + minutes * 60000 + seconds * 1000;
     }
 
     function setSpectatorModeActive(active) {
