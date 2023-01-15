@@ -16,31 +16,39 @@ public class Main {
     public static void main(String[] args) throws Exception {
         logVersion();
 
-        // get the -ws and -hs parameters
         int webSocketPort = 8081;
         int httpServerPort = 8080;
         String password = null;
         String httpServerContext = "/";
         for (String arg : args) {
             if (arg.contains("=") && arg.length() > 2) {
-                String key = arg.substring(1, arg.indexOf('='));
-                String value = arg.substring(arg.indexOf('=') + 1);
+                String key = arg.substring(1, arg.indexOf('=')).trim();
+                String value = arg.substring(arg.indexOf('=') + 1).trim();
                 switch (key) {
                     case "ws":
                     case "webSocketPort":
+                    case "-ws":
+                    case "--webSocketPort":
                         webSocketPort = Integer.parseInt(value);
                         break;
                     case "hs":
                     case "httpPort":
+                    case "-hs":
+                    case "--httpPort":
                         httpServerPort = Integer.parseInt(value);
                         break;
                     case "pw":
                     case "password":
+                    case "-pw":
+                    case "--password":
                         password = value;
                         break;
                     case "ctx":
                     case "path":
                     case "context":
+                    case "-ctx":
+                    case "--path":
+                    case "--context":
                         httpServerContext = value;
                         if (!httpServerContext.startsWith("/")) {
                             httpServerContext = "/" + httpServerContext;

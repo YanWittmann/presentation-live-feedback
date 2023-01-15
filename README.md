@@ -10,7 +10,8 @@ Admin view of the application.
 
 ## Setup
 
-Build the application using maven:
+[Download the packaged jar](https://github.com/YanWittmann/presentation-live-feedback/releases) or build the application
+using maven:
 
 ```bash
 mvn clean package
@@ -18,12 +19,15 @@ mvn clean package
 
 and run it using at least Java 11.
 
-Command line arguments:
+Command line arguments are set via `property=value` pairs:
 
-- `ws` `webSocketPort`: port to use for the web socket server. Default is 8081
-- `hs` `httpPort`: port to use for the http server. Default is 8080
-- `pw` `password`: password to use for the admin. Default is a random alphanumeric string
-- `ctx` `context` `path`: path of the http server. Default is `/`
+```
+java -jar presentation-live-feedback.jar
+    -ws, --webSocketPort    =<webSocketPort> # port to use for the web socket server. Default is 8081
+    -hs, --httpPort         =<httpPort>      # port to use for the http server. Default is 8080
+    -pw, --password         =<password>      # password to use for the admin. Default is a random alphanumeric string
+    -ctx, --context, --path =<path>          # path of the http server. Default is /
+```
 
 In the running application process:
 
