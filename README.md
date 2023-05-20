@@ -6,7 +6,7 @@ host can send messages to the users and reset their reactions/hand status.
 
 ![Screenshot of the application with two users as admin](doc/application-screenshot.png)
 
-Admin view of the application.
+The admin view of the application can be seen above.
 
 ## Setup
 
