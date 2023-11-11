@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login | Presentation Live Feedback</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+          integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3"
+          crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.9.2/umd/popper.min.js"
+            integrity="sha512-2rNj2KJ+D8s1ceNasTIex6z4HWyOnEYLVC3FigGOmyQCZc2eBXKgOxQmo3oKLHyfcj53uz4QMsRCWNbLd32Q1g=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"
+            integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13"
+            crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.2/font/bootstrap-icons.css"
+          integrity="sha384-b6lVK+yci+bfDmaY1u0zE8YYJt0TZxLEAFyYSLHId4xoVvsrQu3INevFKo+Xir8e"
+          crossorigin="anonymous">
+
+    <style>
+        .clickable {
+            cursor: pointer;
+        }
+
+        .clickable.text-muted:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">Presentation Live Feedback</a>
+    </div>
+</nav>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <!-- Session Join Form -->
+            <div class="card" id="joinSessionCard">
+                <div class="card-body">
+                    <form id="joinSessionForm" class="mb-4">
+                        <h3 class="card-title text-center">Join a Session</h3>
+                        <div class="mb-3">
+                            <label for="displayName" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="displayName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="sessionName" class="form-label">Session Name</label>
+                            <input type="text" class="form-control" id="sessionName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="sessionPassword" class="form-label">
+                                Password
+                                <i tabindex="0" class="bi bi-info-circle"
+                                   data-bs-toggle="tooltip" data-bs-placement="right"
+                                   title="Only required on password protected sessions.">
+                                </i>
+                            </label>
+                            <input type="password" class="form-control" id="sessionPassword">
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="rememberName">
+                            <label class="form-check-label" for="rememberName">Remember name</label>
+                        </div>
+                        <div class="d-grid gap-2 mx-auto w-75">
+                            <button type="submit" class="btn btn-primary" id="join-session-regular">Join</button>
+                            <button type="submit" class="btn btn-outline-secondary" id="join-session-spectator">Join as spectator</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card d-none" id="sessionManagerCard">
+                <div class="card-body">
+                    <form id="managerLoginForm" class="mb-4">
+                        <h3 class="card-title text-center">Session Manager Login</h3>
+                        <div class="mb-3">
+                            <label for="managerDisplayName" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="managerDisplayName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="managerPassword" class="form-label">Session Manager Password</label>
+                            <input type="password" class="form-control" id="managerPassword">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Login</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end mt-2 me-2">
+                <span onclick="toggleForms()" id="toggleFormLink"
+                      class="text-muted clickable">Join as Session Manager</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/base.js"></script>
+
+<script>
+    if (!localStorage.getItem('rememberName')) {
+        localStorage.removeItem('displayName');
+    }
+
+    const isManagerAccordingToLocalStorage = localStorage.getItem('transport.isManager');
+
+    if (!isManagerAccordingToLocalStorage) {
+        localStorage.removeItem('transport.userId');
+        localStorage.removeItem('transport.referenceUserId');
+        localStorage.removeItem('transport.username');
+        localStorage.removeItem('transport.userColor');
+        localStorage.removeItem('transport.isManager');
+    }
+
+    const joinSessionCard = document.getElementById('joinSessionCard');
+    const sessionManagerCard = document.getElementById('sessionManagerCard');
+    const toggleFormLink = document.getElementById('toggleFormLink');
+
+    const sessionDisplayName = document.getElementById('displayName');
+    const sessionName = document.getElementById('sessionName');
+    const sessionPassword = document.getElementById('sessionPassword');
+    const rememberName = document.getElementById('rememberName');
+
+    const managerDisplayName = document.getElementById('managerDisplayName');
+    const managerPassword = document.getElementById('managerPassword');
+
+    const joinSessionForm = document.getElementById('joinSessionForm');
+    const managerLoginForm = document.getElementById('managerLoginForm');
+
+    if (localStorage.getItem('displayName') && localStorage.getItem('rememberName')) {
+        const displayName = document.getElementById('displayName');
+        const rememberName = document.getElementById('rememberName');
+        displayName.value = localStorage.getItem('displayName');
+        managerDisplayName.value = localStorage.getItem('displayName');
+        rememberName.checked = true;
+    }
+
+    const parsedUrlParams = parseUrlParameters();
+    if (parsedUrlParams['session']) {
+        sessionName.value = parsedUrlParams['session'];
+    }
+    if (parsedUrlParams['password']) {
+        sessionPassword.value = parsedUrlParams['password'];
+    }
+    clearUrlParameters(['session', 'password']);
+
+    function setInputError(inputElement, forceActive = undefined) {
+        if (!inputElement) {
+            return;
+        }
+        if (forceActive !== undefined) {
+            if (forceActive) {
+                inputElement.classList.add('is-invalid');
+            } else {
+                inputElement.classList.remove('is-invalid');
+            }
+        } else if (!inputElement.value || inputElement.value === "") {
+            inputElement.classList.add('is-invalid');
+        } else {
+            inputElement.classList.remove('is-invalid');
+        }
+    }
+
+    function toggleForms() {
+        joinSessionCard.classList.toggle('d-none');
+        sessionManagerCard.classList.toggle('d-none');
+        if (joinSessionCard.classList.contains('d-none')) {
+            toggleFormLink.innerText = 'Join as Participant';
+        } else {
+            toggleFormLink.innerText = 'Join as Session Manager';
+        }
+    }
+
+    joinSessionForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const displayNameValue = sessionDisplayName.value;
+        const sessionNameValue = sessionName.value;
+        const sessionPasswordValue = sessionPassword.value;
+        const rememberNameValue = rememberName.checked;
+
+        setInputError(sessionDisplayName);
+        setInputError(sessionName);
+
+        if (rememberNameValue) {
+            localStorage.setItem('displayName', displayNameValue);
+            localStorage.setItem('rememberName', rememberNameValue);
+        } else {
+            localStorage.removeItem('displayName');
+            localStorage.removeItem('rememberName');
+        }
+
+        const param = {
+            username: displayNameValue,
+            sessionName: sessionNameValue,
+            sessionPassword: sessionPasswordValue,
+            uniqueComputerId: systemFingerprint,
+            spectator: event.submitter.id === 'join-session-spectator'
+        };
+
+        doPost('/api/session/join', param, (data) => {
+            setInputError(sessionName, false);
+            setInputError(sessionPassword, false);
+            localStorage.setItem('transport.userId', data.userId);
+            localStorage.setItem('transport.referenceUserId', data.referenceUserId);
+            localStorage.setItem('transport.username', data.username);
+            localStorage.setItem('transport.userColor', data.userColor);
+            window.location.href = '/session/' + sessionNameValue;
+        }, (error) => {
+            setInputError(sessionName, true);
+            setInputError(sessionPassword, true);
+        });
+    });
+
+    managerLoginForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const displayNameValue = managerDisplayName.value;
+        const passwordValue = managerPassword.value;
+
+        setInputError(managerDisplayName);
+        setInputError(managerPassword);
+
+        const param = {
+            username: displayNameValue,
+            uniqueComputerId: systemFingerprint,
+            authToken: passwordValue
+        };
+
+        doPost('/api/session/manager/validate/login', param, (data) => {
+            setInputError(managerPassword, false);
+            localStorage.setItem('displayName', data.username);
+            localStorage.setItem('rememberName', true);
+            localStorage.setItem('transport.userId', data.userId);
+            localStorage.setItem('transport.referenceUserId', data.referenceUserId);
+            localStorage.setItem('transport.username', data.username);
+            localStorage.setItem('transport.userColor', data.userColor);
+            window.location.href = '/manager';
+        }, (error) => {
+            setInputError(managerPassword, true);
+        });
+    });
+</script>
+
+</body>
+</html>

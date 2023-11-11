@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Session Manager | Presentation Live Feedback</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+          integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3"
+          crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.9.2/umd/popper.min.js"
+            integrity="sha512-2rNj2KJ+D8s1ceNasTIex6z4HWyOnEYLVC3FigGOmyQCZc2eBXKgOxQmo3oKLHyfcj53uz4QMsRCWNbLd32Q1g=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"
+            integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13"
+            crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.2/font/bootstrap-icons.css"
+          integrity="sha384-b6lVK+yci+bfDmaY1u0zE8YYJt0TZxLEAFyYSLHId4xoVvsrQu3INevFKo+Xir8e"
+          crossorigin="anonymous">
+
+    <style>
+        .clickable {
+            cursor: pointer;
+        }
+
+        .clickable.text-muted:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">Session Manager</a>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <div class="row" id="session-list"></div>
+</div>
+
+<div class="modal" tabindex="-1" id="generic-modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="generic-modal-title"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="generic-modal-body"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="generic-modal-close-button">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/base.js"></script>
+
+<script>
+    let userData = {};
+    const userId = localStorage.getItem('transport.userId');
+
+    function conditionallyInitializeAfterCheckingSuperuser() {
+        doPost('/api/session/manager/validate/id', {
+            userId: userId,
+        }, (data) => {
+            console.log(data);
+            userData = data;
+            initializeProperly();
+        }, (error) => {
+            console.log(error);
+            localStorage.removeItem('transport.isManager');
+            window.location.href = '/login';
+        });
+    }
+
+    let sessionInstances = [];
+    const sessionListElement = document.getElementById('session-list');
+
+    function initializeProperly() {
+        console.log('User authenticated, initializing properly');
+        localStorage.setItem('transport.isManager', 'true');
+        updateSessions();
+
+        const socket = getWebSocket();
+
+        socket.addEventListener('open', function (event) {
+            console.log('Connected to WS Server');
+            socket.send(JSON.stringify({
+                type: 'register',
+                userId: userData.userId,
+            }));
+        });
+
+        socket.addEventListener('message', function (event) {
+            console.log('Message from server', event.data);
+            const data = JSON.parse(event.data);
+
+            if (data.type) {
+                switch (data.type) {
+                    case 'session-changed':
+                        updateSessions();
+                        break;
+                }
+            }
+        });
+
+        socket.addEventListener('close', function (event) {
+            console.log('Disconnected from WS Server');
+            showGenericModal('Disconnected', 'The connection to the session management software has been lost. Thank you for joining this session.');
+        });
+
+        // update every few minutes no matter what
+        setInterval(() => {
+            updateSessions();
+        }, 1000 * 60 * 4);
+    }
+
+    function updateSessions(setData = undefined) {
+        console.log('Updating sessions' + (setData === undefined ? ' with request to server' : ' with ' + setData.length + ' set data entries'));
+
+        if (setData === undefined) {
+            doPost('/api/session/list', {
+                userId: userId,
+            }, data => {
+                console.log(data);
+                updateContent(data);
+            }, err => {
+                console.log(err);
+            });
+        } else {
+            updateContent(setData);
+        }
+
+        function updateContent(data) {
+            sessionInstances = data;
+
+            while (sessionListElement.children.length > 1) {
+                sessionListElement.removeChild(sessionListElement.lastChild);
+            }
+
+            if (sessionListElement.children.length === 0) {
+                const createNewSessionElement = document.createElement('div');
+                createNewSessionElement.classList.add('col-md-4', 'mb-3');
+                createNewSessionElement.innerHTML = `
+<div class="card">
+    <div class="card-header">Create new session</div>
+    <ul class="list-group list-group-flush">
+        <li class="list-group-item">
+            <input type="text" class="form-control" id="session-name" placeholder="Session name">
+            <input type="password" class="form-control mt-2" id="session-password" placeholder="Password">
+        </li>
+    </ul>
+    <div class="card-body">
+        <button class="btn btn-success btn-sm" id="session-create-new-session">Create</button>
+    </div>
+</div>`;
+                sessionListElement.appendChild(createNewSessionElement);
+
+                const createSessionButton = document.getElementById('session-create-new-session');
+                createSessionButton.addEventListener('click', () => {
+                    const sessionName = document.getElementById('session-name').value;
+                    let sessionPassword = document.getElementById('session-password').value;
+                    sessionPassword = sessionPassword.length === 0 ? undefined : sessionPassword;
+
+                    if (sessionName.length === 0) {
+                        document.getElementById('session-name').classList.add('is-invalid');
+                        return;
+                    }
+
+                    createSessionButton.setAttribute('disabled', 'true');
+                    createSessionButton.innerHTML = `
+<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+<span class="visually-hidden">Creating...</span>
+`;
+
+                    createSession(sessionName, sessionPassword, () => {
+                        createSessionButton.removeAttribute('disabled');
+                        createSessionButton.innerText = 'Create';
+                        document.getElementById('session-name').value = '';
+                        document.getElementById('session-password').value = '';
+                    });
+                });
+            }
+
+            for (const session of sessionInstances) {
+                const passwordLockedElement = document.createElement('i');
+                passwordLockedElement.classList.add('bi');
+                passwordLockedElement.classList.add('text-muted');
+                passwordLockedElement.classList.add('me-2');
+                passwordLockedElement.setAttribute('data-bs-toggle', 'tooltip');
+                passwordLockedElement.setAttribute('data-bs-placement', 'right');
+
+                if (session.password) {
+                    passwordLockedElement.classList.add('bi-lock-fill');
+                    passwordLockedElement.setAttribute('title', 'Click to copy password');
+
+                    passwordLockedElement.addEventListener('click', () => {
+                        navigator.clipboard.writeText(session.password).then(() => {
+                            passwordLockedElement.classList.remove('bi-lock-fill');
+                            passwordLockedElement.classList.add('bi-clipboard-fill');
+                            setTimeout(() => {
+                                passwordLockedElement.classList.remove('bi-clipboard-fill');
+                                passwordLockedElement.classList.add('bi-lock-fill');
+                            }, 1500);
+                        }, () => {
+                            alert('Failed to copy password to clipboard');
+                        });
+                    });
+                } else {
+                    passwordLockedElement.classList.add('bi-unlock');
+                    passwordLockedElement.setAttribute('title', 'Password protection is disabled on this session');
+                }
+
+                // /session/<session-id>?password=<password>
+                const sessionUrlDirect = new URL(window.location.origin + '/session/' + session.name + '?join=true&' + (session.password ? '&password=' + session.password : ''));
+                const sessionUrlLogin = new URL(window.location.origin + '/login?session=' + session.name + (session.password ? '&password=' + session.password : ''));
+
+                const sessionElement = document.createElement('div');
+                sessionElement.classList.add('col-md-4');
+                sessionElement.classList.add('mb-3');
+
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('card');
+
+                const cardHeaderElement = document.createElement('div');
+                cardHeaderElement.classList.add('card-header');
+                cardHeaderElement.appendChild(passwordLockedElement);
+
+                const sessionNameElement = document.createElement('span');
+                sessionNameElement.innerText = session.name;
+                cardHeaderElement.appendChild(sessionNameElement);
+
+                // badge with link to session
+                const badgeElement = document.createElement('span');
+                badgeElement.classList.add('badge');
+                badgeElement.classList.add('bg-primary');
+                badgeElement.classList.add('clickable');
+                badgeElement.classList.add('text-white');
+                badgeElement.classList.add('float-end');
+                const badgeIconElement = document.createElement('i');
+                badgeIconElement.classList.add('bi');
+                badgeIconElement.classList.add('bi-share-fill');
+                badgeIconElement.classList.add('me-1');
+                badgeElement.addEventListener('click', () => {
+                    navigator.clipboard.writeText(sessionUrlLogin.toString()).then(() => {
+                        badgeIconElement.classList.remove('bi-share-fill');
+                        badgeIconElement.classList.add('bi-clipboard');
+                        setTimeout(() => {
+                            badgeIconElement.classList.remove('bi-clipboard');
+                            badgeIconElement.classList.add('bi-share-fill');
+                        }, 1500);
+                    }, () => {
+                        alert('Failed to copy URL to clipboard');
+                    });
+                })
+
+                badgeElement.appendChild(badgeIconElement);
+                cardHeaderElement.appendChild(badgeElement);
+
+                const listGroupElement = document.createElement('ul');
+                listGroupElement.classList.add('list-group');
+                listGroupElement.classList.add('list-group-flush');
+
+                createListGroupItem(listGroupElement, 'Participants', session.participants.length);
+
+                const now = new Date();
+                const creationDate = new Date(session.creationDate);
+                const diff = now.getTime() - creationDate.getTime();
+                createListGroupItem(listGroupElement, 'Duration', `${Math.floor(diff / 1000 / 60)} min`);
+
+                const cardBodyElement = document.createElement('div');
+                cardBodyElement.classList.add('card-body');
+
+                const joinButton = document.createElement('a');
+                joinButton.classList.add('btn', 'btn-sm', 'btn-primary', 'me-2');
+                joinButton.innerText = 'Join';
+                joinButton.href = sessionUrlDirect.toString();
+                cardBodyElement.appendChild(joinButton);
+
+                const deleteButton = document.createElement('button');
+                deleteButton.classList.add('btn');
+                deleteButton.classList.add('btn-danger');
+                deleteButton.classList.add('btn-sm');
+                deleteButton.innerText = 'Close';
+                deleteButton.addEventListener('click', () => {
+                    deleteButton.setAttribute('disabled', 'true');
+                    deleteButton.innerHTML = `
+<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+<span class="visually-hidden">Deleting...</span>
+`;
+                    setTimeout(() => {
+                        // make sure by asking user
+                        if (!confirm('Closing the session will remove all participants and delete the session. Are you sure?')) {
+                            deleteButton.removeAttribute('disabled');
+                            deleteButton.innerText = 'Close';
+                            return;
+                        }
+
+                        doPost('/api/session/delete', {
+                            userId: userId,
+                            sessionId: session.id,
+                        }, data => {
+                            console.log(data);
+                            updateSessions(data);
+                        }, err => {
+                            console.log(err);
+                            deleteButton.removeAttribute('disabled');
+                            deleteButton.innerText = 'Close';
+                        });
+                    }, 0);
+                });
+                cardBodyElement.appendChild(deleteButton);
+
+                cardElement.appendChild(cardHeaderElement);
+                cardElement.appendChild(listGroupElement);
+                cardElement.appendChild(cardBodyElement);
+                sessionElement.appendChild(cardElement);
+                sessionListElement.appendChild(sessionElement);
+            }
+
+            updateBsTooltips();
+        }
+    }
+
+    function createListGroupItem(parentElement, key, value) {
+        const listItem = document.createElement('li');
+        listItem.classList.add('list-group-item');
+
+        const row = document.createElement('div');
+        row.classList.add('row');
+
+        const keyContainer = document.createElement('div');
+        keyContainer.classList.add('col-6');
+        keyContainer.innerText = key;
+
+        const valueContainer = document.createElement('div');
+        valueContainer.classList.add('col-6');
+        if (value instanceof HTMLElement) {
+            valueContainer.appendChild(value);
+        } else {
+            valueContainer.innerText = value;
+        }
+
+        row.appendChild(keyContainer);
+        row.appendChild(valueContainer);
+
+        listItem.appendChild(row);
+
+        parentElement.appendChild(listItem);
+    }
+
+    function createSession(name, password, anyCaseCallback = () => {
+    }) {
+        doPost('/api/session/create', {
+            userId: userId,
+            sessionName: name,
+            password: password,
+        }, data => {
+            console.log(data);
+            updateSessions(data);
+            if (anyCaseCallback !== undefined) {
+                anyCaseCallback(err);
+            }
+        }, err => {
+            console.log(err);
+            if (anyCaseCallback !== undefined) {
+                anyCaseCallback(err);
+            }
+        });
+    }
+
+    conditionallyInitializeAfterCheckingSuperuser();
+</script>
+
+</body>
+</html>
