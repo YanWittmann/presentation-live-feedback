@@ -71,12 +71,30 @@
         .user-table-hand-raised.bi-9-circle-fill {
             color: #751b00;
         }
+
+        /* add to first child with class 'alert' */
+        #main-alerts-container > .alert:first-child {
+            padding-top: 0.5rem;
+        }
+
+        #display-timer-container {
+            top: -2.8rem;
+            right: 0.3rem;
+            z-index: 1000;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
 
 <div class="container mt-4">
     <h3 class="mb-3 fw-bold ms-2" th:text="${sessionId}" id="session-name-container">Session</h3>
+
+    <div id="main-alerts-container" class="position-relative">
+        <div id="display-timer-container" class="position-absolute text-muted">
+            <span class="fs-3" id="display-timer"></span>
+        </div>
+    </div>
 
     <ul class="list-group" id="user-table">
         <span class="placeholder-glow">
@@ -94,6 +112,18 @@
         <span class="fs-1 clickable" id="raise-hand-button"
               data-bs-toggle="tooltip" data-bs-placement="bottom" title="Raise hand">
             ✋
+        </span>
+        <span class="fs-1 ms-2 clickable d-none only-for-session-managers" id="message-all-users"
+              data-bs-toggle="tooltip" data-bs-placement="bottom" title="Message all users">
+            <i class="bi bi-envelope"></i>
+        </span>
+        <span class="fs-1 ms-2 clickable d-none only-for-session-managers" id="remove-raised-hand-from-all-users"
+              data-bs-toggle="tooltip" data-bs-placement="bottom" title="Remove raised hand from all users">
+            🫳
+        </span>
+        <span class="fs-1 ms-2 clickable d-none only-for-session-managers" id="set-timer"
+              data-bs-toggle="tooltip" data-bs-placement="bottom" title="Set timer">
+            🕖
         </span>
     </div>
 
@@ -123,6 +153,7 @@
 
 <script th:inline="javascript">
     const sessionName = /*[[${sessionId}]]*/ 'Session';
+    const initialTimerValue = /*[[${initialTimerValue}]]*/ null;
     const availableEmoticons = JSON.parse(/*[[${availableEmoticons}]]*/ "[{\"emoji\": \"🙂\",\"name\": \"SMILE\",\"wellFormedName\": \"Smile\"},{\"emoji\": \"🥳\",\"name\": \"PARTY\",\"wellFormedName\": \"Party\"},{\"emoji\": \"🐢\",\"name\": \"SLOWER\",\"wellFormedName\": \"Slower\"},{\"emoji\": \"🐇\",\"name\": \"FASTER\",\"wellFormedName\": \"Faster\"},{\"emoji\": \"❓\",\"name\": \"QUESTION_MARK\",\"wellFormedName\": \"Question mark\"},{\"emoji\": \"☕\",\"name\": \"BREAK\",\"wellFormedName\": \"Break\"},{\"emoji\": \"✔\",\"name\": \"CHECKMARK\",\"wellFormedName\": \"Checkmark\"},{\"emoji\": \"❌\",\"name\": \"CROSS\",\"wellFormedName\": \"Cross\"},{\"emoji\": \"1️⃣\",\"name\": \"ONE\",\"wellFormedName\": \"One\"},{\"emoji\": \"2️⃣\",\"name\": \"TWO\",\"wellFormedName\": \"Two\"},{\"emoji\": \"3️⃣\",\"name\": \"THREE\",\"wellFormedName\": \"Three\"},{\"emoji\": \"4️⃣\",\"name\": \"FOUR\",\"wellFormedName\": \"Four\"},{\"emoji\": \"5️⃣\",\"name\": \"FIVE\",\"wellFormedName\": \"Five\"}]");
 
     const sessionNameContainer = document.getElementById('session-name-container');
@@ -166,15 +197,51 @@
         });
     }
 
+    const messageAllUsersButton = document.getElementById('message-all-users');
+    if (messageAllUsersButton) {
+        messageAllUsersButton.addEventListener('click', function (event) {
+            const message = prompt('Please enter a message to send to all users of the session or leave empty to cancel.');
+            if (message) {
+                wsSendMessageToAllUsersInSession(message);
+            }
+        });
+    }
+
+    const removeRaisedHandFromAllUsersButton = document.getElementById('remove-raised-hand-from-all-users');
+    if (removeRaisedHandFromAllUsersButton) {
+        removeRaisedHandFromAllUsersButton.addEventListener('click', function (event) {
+            currentUserList.forEach(user => {
+                if (user.sessionState.raisedHandTime) {
+                    wsRemoveHandRaisedFromUser(user.referenceUserId);
+                }
+            });
+        });
+    }
+
+    const setTimerButton = document.getElementById('set-timer');
+    if (setTimerButton) {
+        setTimerButton.addEventListener('click', function (event) {
+            const time = prompt('Enter a duration in HH:mm:ss format or leave empty to cancel.');
+            if (time) {
+                const date = convertInputTimeToDate(time);
+                if (date === null) {
+                    return;
+                }
+                wsSetTimer(date);
+            }
+        });
+    }
+
     updateBsTooltips();
 </script>
 
 <script>
     if (!localStorage.getItem('transport.userId') || !localStorage.getItem('transport.username') || !localStorage.getItem('transport.userColor')) {
-        window.location.href = '/login?session=' + sessionName;
+        // window.location.href = '/login?session=' + sessionName;
     }
 
     const userTableElement = document.getElementById('user-table');
+    const timerElement = document.getElementById('display-timer');
 
     const userId = localStorage.getItem('transport.userId');
     const referenceUserId = localStorage.getItem('transport.referenceUserId');
@@ -188,6 +255,11 @@
         localStorage.removeItem('transport.username');
         localStorage.removeItem('transport.userColor');
         localStorage.removeItem('transport.isManager');
+    } else {
+        const sessionManagerElements = document.getElementsByClassName('only-for-session-managers');
+        for (let i = 0; i < sessionManagerElements.length; i++) {
+            sessionManagerElements[i].classList.remove('d-none');
+        }
     }
 
     if (!localStorage.getItem('rememberName')) {
@@ -212,6 +284,23 @@
         });
     } else {
         fetchInitialParticipantsList();
+    }
+
+    if (parsedUrlParams['movedby'] && parsedUrlParams['movedfrom']) {
+        const container = document.createElement('span');
+        container.appendChild(document.createTextNode(parsedUrlParams['movedby'] + ' moved you to another session: '));
+
+        const bold = document.createElement('b');
+        bold.appendChild(document.createTextNode(parsedUrlParams['movedfrom'] + ' '));
+        const arrow = document.createElement('i');
+        arrow.classList.add('bi', 'bi-arrow-right');
+        bold.appendChild(arrow);
+        bold.appendChild(document.createTextNode(' ' + sessionName));
+        container.appendChild(bold);
+
+        createMainAlert('warning', container);
+
+        clearUrlParameters(['movedby', 'movedfrom']);
     }
 
 
@@ -255,6 +344,8 @@
         });
     }
 
+    let currentUserList = [];
+
     function updateParticipantsList(users) {
         preprocessUsers(users);
         console.log('Updating participants list', users);
@@ -263,6 +354,8 @@
             .map(user => createUserTableEntry(user));
         userTableElement.innerHTML = '';
         userTableEntries.forEach(userTableEntry => userTableElement.appendChild(userTableEntry));
+
+        currentUserList = users;
 
         const amountNonSpectatorUsers = users.filter(user => !user.sessionState.isSpectator).length;
         const amountSpectatorUsers = users.filter(user => user.sessionState.isSpectator).length;
@@ -413,6 +506,13 @@
                 raisedHandIcon.classList.add('bi', 'bi-' + user.raisedHandIndex + '-circle-fill', 'user-table-hand-raised');
                 raisedHandContainer.appendChild(raisedHandIcon);
             }
+
+            if (isManagerAccordingToLocalStorage) {
+                raisedHandContainer.classList.add('clickable');
+                raisedHandContainer.addEventListener('click', function (event) {
+                    wsRemoveHandRaisedFromUser(user.referenceUserId);
+                });
+            }
         }
 
         const removeUserButton = li.querySelector('.remove-user-button');
@@ -452,7 +552,44 @@
                     modal.setAttribute('tabindex', '-1');
                     modal.setAttribute('aria-labelledby', 'move-user-to-other-session-modal-title');
                     modal.setAttribute('aria-hidden', 'true');
-                    modal.innerHTML = `
+
+                    if (sessions.length < 5) {
+                        modal.innerHTML = `
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="move-user-to-other-session-modal-title">Move user to other session</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body d-flex flex-column align-items-stretch" id="move-user-to-other-session-modal-body">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+`;
+                        document.body.appendChild(modal);
+                        const modalBody = modal.querySelector('#move-user-to-other-session-modal-body');
+
+                        sessions.forEach(session => {
+                            const sessionButton = document.createElement('button');
+                            sessionButton.classList.add('btn', 'btn-primary', 'my-1');
+                            sessionButton.setAttribute('data-session-id', session.id);
+                            sessionButton.innerText = session.name;
+                            sessionButton.addEventListener('click', function(event) {
+                                wsMoveUserToSession(user.referenceUserId, session.id);
+                                const modalInstance = bootstrap.Modal.getInstance(modal);
+                                modalInstance.hide();
+                                modal.remove();
+                            });
+                            modalBody.appendChild(sessionButton);
+                        });
+
+                        const modalInstance = new bootstrap.Modal(modal);
+                        modalInstance.show();
+                    } else {
+                        modal.innerHTML = `
 <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
         <div class="modal-header">
@@ -471,25 +608,26 @@
     </div>
 </div>
 `;
-                    document.body.appendChild(modal);
-                    const modalSelect = modal.querySelector('#move-user-to-other-session-modal-select');
-                    const modalButton = modal.querySelector('#move-user-to-other-session-modal-button');
-                    sessions.forEach(session => {
-                        const option = document.createElement('option');
-                        option.value = session.id;
-                        option.innerText = session.name;
-                        modalSelect.appendChild(option);
-                    });
-                    const modalInstance = new bootstrap.Modal(modal);
-                    modalButton.addEventListener('click', function (event) {
-                        const selectedSession = modalSelect.value;
-                        if (selectedSession) {
-                            wsMoveUserToSession(user.referenceUserId, selectedSession);
-                        }
-                        modalInstance.hide();
-                        modal.remove();
-                    });
-                    modalInstance.show();
+                        document.body.appendChild(modal);
+                        const modalSelect = modal.querySelector('#move-user-to-other-session-modal-select');
+                        const modalButton = modal.querySelector('#move-user-to-other-session-modal-button');
+                        sessions.forEach(session => {
+                            const option = document.createElement('option');
+                            option.value = session.id;
+                            option.innerText = session.name;
+                            modalSelect.appendChild(option);
+                        });
+                        const modalInstance = new bootstrap.Modal(modal);
+                        modalButton.addEventListener('click', function (event) {
+                            const selectedSession = modalSelect.value;
+                            if (selectedSession) {
+                                wsMoveUserToSession(user.referenceUserId, selectedSession);
+                            }
+                            modalInstance.hide();
+                            modal.remove();
+                        });
+                        modalInstance.show();
+                    }
                 }, err => {
                     showGenericModal('Error', 'Could not fetch list of sessions. Please try again later.')
                 });
@@ -540,31 +678,37 @@
                         break;
                     case 'display-message':
                         if (data.message) {
-                            showGenericModal('Session Message', data.message);
+                            createMainAlert('info', data.message);
+                        }
+                        break;
+                    case 'timer-changed':
+                        if (data.timerTargetDate) {
+                            const date = new Date(data.timerTargetDate);
+                            startTimerFromDate(date);
+                        } else {
+                            startTimerFromDate(null);
                         }
                         break;
                     case 'move-to-session':
                         if (data.targetSessionName) {
-                            showGenericModal('Moved to session', 'You have been moved to session: ' + data.targetSessionName, () => {
-                                if (!localStorage.getItem('transport.userId')) localStorage.setItem('transport.userId', userId);
-                                if (!localStorage.getItem('transport.referenceUserId')) localStorage.setItem('transport.referenceUserId', referenceUserId);
-                                if (!localStorage.getItem('transport.username')) localStorage.setItem('transport.username', username);
-                                if (!localStorage.getItem('transport.userColor')) localStorage.setItem('transport.userColor', userColor);
+                            if (!localStorage.getItem('transport.userId')) localStorage.setItem('transport.userId', userId);
+                            if (!localStorage.getItem('transport.referenceUserId')) localStorage.setItem('transport.referenceUserId', referenceUserId);
+                            if (!localStorage.getItem('transport.username')) localStorage.setItem('transport.username', username);
+                            if (!localStorage.getItem('transport.userColor')) localStorage.setItem('transport.userColor', userColor);
 
-                                const param = {
-                                    userId: userId,
-                                    sessionName: data.targetSessionName,
-                                    sessionPassword: null,
-                                    spectator: false
-                                };
+                            const param = {
+                                userId: userId,
+                                sessionName: data.targetSessionName,
+                                sessionPassword: null,
+                                spectator: false
+                            };
 
-                                doPost('/api/session/join/existing', param, (data2) => {
-                                    localStorage.setItem('transport.userId', data2.userId);
-                                    localStorage.setItem('transport.referenceUserId', data2.referenceUserId);
-                                    localStorage.setItem('transport.username', data2.username);
-                                    localStorage.setItem('transport.userColor', data2.userColor);
-                                    window.location.href = '/session/' + data.targetSessionName;
-                                });
+                            doPost('/api/session/join/existing', param, (data2) => {
+                                localStorage.setItem('transport.userId', data2.userId);
+                                localStorage.setItem('transport.referenceUserId', data2.referenceUserId);
+                                localStorage.setItem('transport.username', data2.username);
+                                localStorage.setItem('transport.userColor', data2.userColor);
+                                window.location.href = '/session/' + data.targetSessionName + '?movedby=' + username + '&movedfrom=' + sessionName;
                             });
                         }
                         break;
@@ -607,11 +751,32 @@
         }));
     }
 
+    function wsSendMessageToAllUsersInSession(message) {
+        getWebSocket().send(JSON.stringify({
+            type: 'session-manager-send-message-to-all-users-in-session',
+            message: message
+        }));
+    }
+
     function wsMoveUserToSession(userReferenceId, session) {
         getWebSocket().send(JSON.stringify({
             type: 'session-manager-move-user-to-session',
             affectedUserId: userReferenceId,
             targetSessionId: session
+        }));
+    }
+
+    function wsRemoveHandRaisedFromUser(userReferenceId) {
+        getWebSocket().send(JSON.stringify({
+            type: 'session-manager-remove-hand-raised-from-user',
+            affectedUserId: userReferenceId
+        }));
+    }
+
+    function wsSetTimer(countToDate) {
+        getWebSocket().send(JSON.stringify({
+            type: 'session-manager-set-timer',
+            countToDate: countToDate.toISOString()
         }));
     }
 
@@ -626,11 +791,121 @@
                 element.innerText = diff;
             } else if (target === 'attribute-title') {
                 element.setAttribute('title', diff);
+                updateBsTooltips([element]);
             }
         }
-
-        updateBsTooltips([element]);
     }
+
+    function updateTimestamps(element = undefined) {
+        const elements = (element || document).querySelectorAll('[data-update-timestamp]');
+        elements.forEach(element => updateTimestamp(element));
+    }
+
+    function createMainAlert(type, message) {
+        const container = document.getElementById('main-alerts-container');
+        const alert = document.createElement('div');
+        alert.classList.add('alert', 'alert-' + type, 'alert-dismissible', 'fade', 'show', 'mb-3');
+        alert.setAttribute('role', 'alert');
+        alert.style.position = 'relative';
+
+        const timestamp = document.createElement('span');
+        timestamp.classList.add('update-timestamp', 'badge', 'me-2');
+        timestamp.setAttribute('data-update-timestamp', new Date().getTime());
+        timestamp.setAttribute('data-update-timestamp-target', 'attribute-title');
+        timestamp.setAttribute('data-bs-toggle', 'tooltip');
+        timestamp.setAttribute('data-bs-placement', 'bottom');
+        timestamp.innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        timestamp.style.position = 'absolute';
+        timestamp.style.top = '-10px';
+        timestamp.style.left = '-10px';
+        timestamp.style.backgroundColor = 'white';
+        timestamp.style.color = 'black';
+        timestamp.style.border = '1px dashed #0000005f';
+        updateTimestamp(timestamp);
+        console.log(timestamp);
+        alert.appendChild(timestamp);
+
+        if (message instanceof HTMLElement) {
+            alert.appendChild(message);
+        } else {
+            alert.appendChild(document.createTextNode(message));
+        }
+
+        const button = document.createElement('button');
+        button.classList.add('btn-close');
+        button.setAttribute('type', 'button');
+        button.setAttribute('data-bs-dismiss', 'alert');
+        button.setAttribute('aria-label', 'Close');
+        alert.appendChild(button);
+        container.appendChild(alert);
+
+        container.addEventListener('mouseenter', function (event) {
+            updateTimestamps(container);
+        });
+    }
+
+    let timerCountDownTo = null;
+
+    if (initialTimerValue) {
+        try {
+            startTimerFromDate(new Date(initialTimerValue));
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function convertInputTimeToDate(time) { // time is 'HH:mm:ss', convert to Date by adding to current time
+        const date = new Date();
+        const parts = time.split(':');
+        if (parts.length !== 3) {
+            alert('Invalid time format, required format is HH:mm:ss but got ' + time);
+            return null;
+        }
+        date.setHours(date.getHours() + parseInt(parts[0]));
+        date.setMinutes(date.getMinutes() + parseInt(parts[1]));
+        date.setSeconds(date.getSeconds() + parseInt(parts[2]));
+        return date;
+    }
+
+    function startTimerFromDate(date) {
+        timerCountDownTo = date;
+        updateTimer();
+    }
+
+    function setTimerValue(remainingTime) {
+        if (remainingTime < 0) remainingTime = 0;
+        if (remainingTime === 0) {
+            timerElement.innerText = '';
+        } else {
+            const hours = Math.floor(remainingTime / 1000 / 60 / 60);
+            const minutes = Math.floor(remainingTime / 1000 / 60) % 60;
+            const seconds = Math.floor(remainingTime / 1000) % 60;
+            timerElement.innerText = (hours > 0 ? hours + ':' : '') + (minutes > 0 ? minutes + ':' : '') + (seconds < 10 ? '0' : '') + seconds;
+
+            timerElement.classList.remove('text-danger');
+            timerElement.classList.remove('text-warning');
+            if (hours === 0 && minutes === 0) {
+                timerElement.classList.add(seconds % 2 === 0 ? 'text-danger' : 'text-warning');
+                timerElement.classList.remove('text-muted');
+            } else {
+                timerElement.classList.add('text-muted');
+            }
+        }
+    }
+
+    function updateTimer() {
+        if (timerCountDownTo) {
+            const remainingTime = timerCountDownTo.getTime() - new Date().getTime();
+            if (remainingTime > 0) {
+                setTimerValue(remainingTime);
+            } else {
+                setTimerValue(0);
+                timerCountDownTo = null;
+            }
+        }
+    }
+
+    setInterval(updateTimer, 1000);
 </script>
 </body>
 </html>

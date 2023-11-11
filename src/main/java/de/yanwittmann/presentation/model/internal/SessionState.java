@@ -22,6 +22,10 @@ public class SessionState {
         this.emotionChangedTime = new Date();
     }
 
+    public void clearRaisedHand() {
+        this.raisedHandTime = null;
+    }
+
     public JSONObject toJson() {
         return new JSONObject()
                 .put("emotionChangedTime", DATE_FORMAT.format(emotionChangedTime))

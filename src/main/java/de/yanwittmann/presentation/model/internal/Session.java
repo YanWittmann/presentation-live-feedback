@@ -3,6 +3,7 @@ package de.yanwittmann.presentation.model.internal;
 import de.yanwittmann.presentation.model.out.OutFullSession;
 import de.yanwittmann.presentation.model.out.OutOtherSessionParticipant;
 import lombok.Getter;
+import lombok.Setter;
 import org.json.JSONObject;
 
 import java.util.*;
@@ -16,6 +17,9 @@ public class Session {
     private final String name;
     private final String password;
     private final Set<SessionParticipant> participants = new HashSet<>();
+
+    @Setter
+    private Date timerTargetDate;
 
     public Session(String name, String password) {
         this.name = name;
@@ -39,7 +43,7 @@ public class Session {
     }
 
     public OutFullSession toOutFullSession() {
-        return new OutFullSession(id, creationDate, name, password, participants.stream().map(SessionParticipant::toOutSelfSessionParticipant).collect(Collectors.toList()));
+        return new OutFullSession(id, creationDate, name, password, participants.stream().map(SessionParticipant::toOutSelfSessionParticipant).collect(Collectors.toList()), timerTargetDate);
     }
 
     public List<OutOtherSessionParticipant> toOutOtherParticipants() {

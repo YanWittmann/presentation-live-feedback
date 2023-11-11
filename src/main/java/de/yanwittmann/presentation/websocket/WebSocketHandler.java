@@ -14,6 +14,7 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Map;
 import java.util.Set;
@@ -162,6 +163,77 @@ public class WebSocketHandler extends TextWebSocketHandler {
                             .put("type", "display-message")
                             .put("message", participant.getUsername() + " sent you a message: " + messageText)
                     );
+
+                } else if (type.equals("session-manager-send-message-to-all-users-in-session")) {
+                    final String messageText = payload.optString("message", null);
+
+                    if (!participant.isSuperuser()) {
+                        LOG.warn("User {} wanted message alls users from session {}, but is not a superuser",
+                                participant, session);
+                        return;
+                    }
+
+                    LOG.info("Authorized user {} messaging all users from session {}",
+                            participant, session);
+
+                    for (SessionParticipant affectedUser : session.getParticipants()) {
+                        affectedUser.sendToWebSocketChannelsBySession(session, new JSONObject()
+                                .put("type", "display-message")
+                                .put("message", participant.getUsername() + " sent you a message: " + messageText)
+                        );
+                    }
+                } else if (type.equals("session-manager-set-timer")) {
+                    final String wsSetTimer = payload.optString("countToDate", null);
+
+                    if (!participant.isSuperuser()) {
+                        LOG.warn("User {} wanted set timer from session {}, but is not a superuser",
+                                participant, session);
+                        return;
+                    }
+
+                    final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
+                    final Date date = dateFormat.parse(wsSetTimer);
+
+                    LOG.info("Authorized user {} set timer from session {}",
+                            participant, session);
+
+                    session.setTimerTargetDate(date);
+
+                    for (SessionParticipant affectedUser : session.getParticipants()) {
+                        affectedUser.sendToWebSocketChannelsBySession(session, new JSONObject()
+                                .put("type", "timer-changed")
+                                .put("timerTargetDate", date.getTime())
+                        );
+                    }
+
+                } else if (type.equals("session-manager-remove-hand-raised-from-user")) {
+                    final String affectedUserId = payload.optString("affectedUserId", null);
+
+                    if (!participant.isSuperuser()) {
+                        LOG.warn("User {} wanted remove hand raised from user {} from session {}, but is not a superuser",
+                                participant, affectedUserId, session);
+                        return;
+                    }
+
+                    final SessionParticipant affectedUser = userService.findUserByReferenceId(UUID.fromString(affectedUserId));
+                    if (affectedUser == null) {
+                        LOG.warn("User {} wanted remove hand raised from user {} from session {}, but affected user does not exist",
+                                participant, affectedUserId, session);
+                        return;
+                    }
+
+                    if (!session.getParticipants().contains(affectedUser)) {
+                        LOG.warn("User {} wanted remove hand raised from user {} from session {}, but affected user is not part of session",
+                                participant, affectedUserId, session);
+                        return;
+                    }
+
+                    LOG.info("Authorized user {} removing hand raised from user {} from session {}",
+                            participant, affectedUser, session);
+
+                    final SessionState affectedUserSessionState = affectedUser.getSessionState(session);
+                    affectedUserSessionState.setRaisedHandTime(null);
+
                 } else if (type.equals("session-manager-move-user-to-session")) {
                     final String affectedUserId = payload.optString("affectedUserId", null);
                     final String targetSessionId = payload.optString("targetSessionId", null);

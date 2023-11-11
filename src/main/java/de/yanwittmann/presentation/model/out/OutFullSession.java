@@ -13,4 +13,5 @@ public class OutFullSession {
     private final String name;
     private final String password;
     private final List<OutSelfSessionParticipant> participants;
+    private final Date timerTargetDate;
 }
