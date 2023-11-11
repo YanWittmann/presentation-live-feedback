@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="${sessionId} + ' | Session'">Session</title>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
+          integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3"
+          crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/2.9.2/umd/popper.min.js"
+            integrity="sha512-2rNj2KJ+D8s1ceNasTIex6z4HWyOnEYLVC3FigGOmyQCZc2eBXKgOxQmo3oKLHyfcj53uz4QMsRCWNbLd32Q1g=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"
+            integrity="sha384-QJHtvGhmr9XOIpI6YVutG+2QOK9T+ZnN4kzFN1RtK3zEFEIsxhlmWl5/YESvpZ13"
+            crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.2/font/bootstrap-icons.css"
+          integrity="sha384-b6lVK+yci+bfDmaY1u0zE8YYJt0TZxLEAFyYSLHId4xoVvsrQu3INevFKo+Xir8e"
+          crossorigin="anonymous">
+
+    <style>
+        .user-table-emoji-container {
+            width: 1.9rem;
+            margin-left: -0.3rem;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .clickable {
+            cursor: pointer;
+        }
+
+        .user-table-hand-raised {
+            color: #c000af;
+        }
+
+        .user-table-hand-raised.bi-1-circle-fill {
+            color: #55ad0d;
+        }
+
+        .user-table-hand-raised.bi-2-circle-fill {
+            color: #8cab00;
+        }
+
+        .user-table-hand-raised.bi-3-circle-fill {
+            color: #acb800;
+        }
+
+        .user-table-hand-raised.bi-4-circle-fill {
+            color: #a68c00;
+        }
+
+        .user-table-hand-raised.bi-5-circle-fill {
+            color: #986800;
+        }
+
+        .user-table-hand-raised.bi-6-circle-fill {
+            color: #755000;
+        }
+
+        .user-table-hand-raised.bi-7-circle-fill {
+            color: #753e00;
+        }
+
+        .user-table-hand-raised.bi-8-circle-fill {
+            color: #753100;
+        }
+
+        .user-table-hand-raised.bi-9-circle-fill {
+            color: #751b00;
+        }
+
+        /* add to first child with class 'alert' */
+        #main-alerts-container > .alert:first-child {
+            padding-top: 0.5rem;
+        }
+
+        #display-timer-container {
+            top: -2.8rem;
+            right: 0.3rem;
+            z-index: 1000;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+
+<div th:text="'v' + ${appVersion}" class="position-absolute bottom-0 end-0 text-muted me-4 mb-3">v2.0.0</div>
+
+<div class="container mt-4">
+    <h3 class="mb-3 fw-bold ms-2" th:text="${sessionId}" id="session-name-container">Session</h3>
+
+    <div id="main-alerts-container" class="position-relative">
+        <div id="display-timer-container" class="position-absolute text-muted">
+            <span class="fs-3" id="display-timer"></span>
+        </div>
+    </div>
+
+    <ul class="list-group" id="user-table">
+        <span class="placeholder-glow">
+            <span class="placeholder col-12 mt-1"
+                  style="height: 30px; border-top-left-radius: 5px; border-top-right-radius: 5px;"></span>
+            <span class="placeholder col-12 mt-1" style="height: 30px;"></span>
+            <span class="placeholder col-12 mt-1"
+                  style="height: 30px; border-bottom-left-radius: 5px; border-bottom-right-radius: 5px;"></span>
+        </span>
+    </ul>
+
+    <hr class="mt-5 mb-4 hide-spectator">
+
+    <div class="text-center mb-2 hide-spectator">
+        <span class="fs-1 clickable" id="raise-hand-button"
+              data-bs-toggle="tooltip" data-bs-placement="bottom" title="Raise hand">
+            ✋
+        </span>
+        <span class="fs-1 ms-2 clickable d-none only-for-session-managers" id="message-all-users"
+              data-bs-toggle="tooltip" data-bs-placement="bottom" title="Message all users">
+            <i class="bi bi-envelope"></i>
+        </span>
+        <span class="fs-1 ms-2 clickable d-none only-for-session-managers" id="remove-raised-hand-from-all-users"
+              data-bs-toggle="tooltip" data-bs-placement="bottom" title="Remove raised hand from all users">
+            🫳
+        </span>
+        <span class="fs-1 ms-2 clickable d-none only-for-session-managers" id="set-timer"
+              data-bs-toggle="tooltip" data-bs-placement="bottom" title="Set timer">
+            🕖
+        </span>
+    </div>
+
+    <div id="emoji-grid" class="row hide-spectator"></div>
+</div>
+
+<div class="modal fade" tabindex="-1" id="generic-modal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="generic-modal-title"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="generic-modal-body"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="generic-modal-close-button">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/base.js"></script>
+
+<script th:inline="javascript">
+    const sessionName = /*[[${sessionId}]]*/ 'Session';
+    const initialTimerValue = /*[[${initialTimerValue}]]*/ null;
+    const availableEmoticons = JSON.parse(/*[[${availableEmoticons}]]*/ "[{\"emoji\": \"🙂\",\"name\": \"SMILE\",\"wellFormedName\": \"Smile\"},{\"emoji\": \"🥳\",\"name\": \"PARTY\",\"wellFormedName\": \"Party\"},{\"emoji\": \"🐢\",\"name\": \"SLOWER\",\"wellFormedName\": \"Slower\"},{\"emoji\": \"🐇\",\"name\": \"FASTER\",\"wellFormedName\": \"Faster\"},{\"emoji\": \"❓\",\"name\": \"QUESTION_MARK\",\"wellFormedName\": \"Question mark\"},{\"emoji\": \"☕\",\"name\": \"BREAK\",\"wellFormedName\": \"Break\"},{\"emoji\": \"✔\",\"name\": \"CHECKMARK\",\"wellFormedName\": \"Checkmark\"},{\"emoji\": \"❌\",\"name\": \"CROSS\",\"wellFormedName\": \"Cross\"},{\"emoji\": \"1️⃣\",\"name\": \"ONE\",\"wellFormedName\": \"One\"},{\"emoji\": \"2️⃣\",\"name\": \"TWO\",\"wellFormedName\": \"Two\"},{\"emoji\": \"3️⃣\",\"name\": \"THREE\",\"wellFormedName\": \"Three\"},{\"emoji\": \"4️⃣\",\"name\": \"FOUR\",\"wellFormedName\": \"Four\"},{\"emoji\": \"5️⃣\",\"name\": \"FIVE\",\"wellFormedName\": \"Five\"}]");
+
+    const sessionNameContainer = document.getElementById('session-name-container');
+    const participantCountSpan = document.createElement('span');
+    if (sessionNameContainer) {
+        participantCountSpan.classList.add('text-muted', 'fs-6', 'fw-normal', 'ms-3');
+        participantCountSpan.id = 'participant-count';
+        participantCountSpan.innerText = '0 Participants';
+        sessionNameContainer.appendChild(participantCountSpan);
+    }
+
+    const emojiGridContainer = document.getElementById('emoji-grid');
+
+    function updateEmojiGrid(statistics = {}) {
+        emojiGridContainer.innerHTML = '';
+
+        availableEmoticons.forEach(emoticon => {
+            let emojiButton = document.createElement('span');
+            emojiButton.classList.add('fs-3', 'col', 'mb-2', 'text-center', 'clickable');
+            emojiButton.innerText = emoticon.emoji;
+            if (statistics[emoticon.name]) {
+                emojiButton.appendChild(document.createElement('br'));
+                emojiButton.appendChild(document.createTextNode(statistics[emoticon.name]));
+            }
+            emojiButton.setAttribute('data-bs-toggle', 'tooltip');
+            emojiButton.setAttribute('data-bs-placement', 'bottom');
+            emojiButton.setAttribute('title', emoticon.wellFormedName);
+            emojiGridContainer.appendChild(emojiButton);
+            emojiButton.addEventListener('click', function (event) {
+                wsSetEmotion(emoticon.name);
+            });
+        });
+    }
+
+    updateEmojiGrid();
+
+    const raiseHandButton = document.getElementById('raise-hand-button');
+    if (raiseHandButton) {
+        raiseHandButton.addEventListener('click', function (event) {
+            wsToggleHandRaised();
+        });
+    }
+
+    const messageAllUsersButton = document.getElementById('message-all-users');
+    if (messageAllUsersButton) {
+        messageAllUsersButton.addEventListener('click', function (event) {
+            const message = prompt('Please enter a message to send to all users of the session or leave empty to cancel.');
+            if (message) {
+                wsSendMessageToAllUsersInSession(message);
+            }
+        });
+    }
+
+    const removeRaisedHandFromAllUsersButton = document.getElementById('remove-raised-hand-from-all-users');
+    if (removeRaisedHandFromAllUsersButton) {
+        removeRaisedHandFromAllUsersButton.addEventListener('click', function (event) {
+            currentUserList.forEach(user => {
+                if (user.sessionState.raisedHandTime) {
+                    wsRemoveHandRaisedFromUser(user.referenceUserId);
+                }
+            });
+        });
+    }
+
+    const setTimerButton = document.getElementById('set-timer');
+    if (setTimerButton) {
+        setTimerButton.addEventListener('click', function (event) {
+            const time = prompt('Enter a duration in HH:mm:ss format or leave empty to cancel.');
+            if (time) {
+                const date = convertInputTimeToDate(time);
+                if (date === null) {
+                    return;
+                }
+                wsSetTimer(date);
+            }
+        });
+    }
+
+    updateBsTooltips();
+</script>
+
+<script>
+    if (!localStorage.getItem('transport.userId') || !localStorage.getItem('transport.username') || !localStorage.getItem('transport.userColor')) {
+        // window.location.href = '/login?session=' + sessionName;
+    }
+
+    const userTableElement = document.getElementById('user-table');
+    const timerElement = document.getElementById('display-timer');
+
+    const userId = localStorage.getItem('transport.userId');
+    const referenceUserId = localStorage.getItem('transport.referenceUserId');
+    const username = localStorage.getItem('transport.username');
+    const userColor = localStorage.getItem('transport.userColor');
+    const isManagerAccordingToLocalStorage = localStorage.getItem('transport.isManager') === 'true';
+
+    if (!isManagerAccordingToLocalStorage) {
+        localStorage.removeItem('transport.userId');
+        localStorage.removeItem('transport.referenceUserId');
+        localStorage.removeItem('transport.username');
+        localStorage.removeItem('transport.userColor');
+        localStorage.removeItem('transport.isManager');
+    } else {
+        const sessionManagerElements = document.getElementsByClassName('only-for-session-managers');
+        for (let i = 0; i < sessionManagerElements.length; i++) {
+            sessionManagerElements[i].classList.remove('d-none');
+        }
+    }
+
+    if (!localStorage.getItem('rememberName')) {
+        localStorage.removeItem('displayName');
+    }
+
+    const parsedUrlParams = parseUrlParameters();
+    if (parsedUrlParams['join']) {
+        const param = {
+            username: username,
+            sessionName: sessionName,
+            sessionPassword: parsedUrlParams['password'] ? parsedUrlParams['password'] : null,
+            uniqueComputerId: systemFingerprint
+        };
+        clearUrlParameters(['password']);
+        doPost('/api/session/join', param, data => {
+            fetchInitialParticipantsList();
+        }, err => {
+            showGenericModal('Unauthenticated', 'You cannot automatically rejoin a password-protected session, even as Session Manager.', () => {
+                window.location.href = '/login?session=' + sessionName;
+            });
+        });
+    } else {
+        fetchInitialParticipantsList();
+    }
+
+    if (parsedUrlParams['movedby'] && parsedUrlParams['movedfrom']) {
+        const container = document.createElement('span');
+        container.appendChild(document.createTextNode(parsedUrlParams['movedby'] + ' moved you to another session: '));
+
+        const bold = document.createElement('b');
+        bold.appendChild(document.createTextNode(parsedUrlParams['movedfrom'] + ' '));
+        const arrow = document.createElement('i');
+        arrow.classList.add('bi', 'bi-arrow-right');
+        bold.appendChild(arrow);
+        bold.appendChild(document.createTextNode(' ' + sessionName));
+        container.appendChild(bold);
+
+        createMainAlert('warning', container);
+
+        clearUrlParameters(['movedby', 'movedfrom']);
+    }
+
+
+    let isInitialized = false;
+
+    function fetchInitialParticipantsList() {
+        doPost('/api/session/participants', {
+            sessionName: sessionName,
+            userId: userId
+        }, data => {
+            if (data.length === 1) {
+                const firstElement = data[0];
+                if (firstElement['message']) {
+                    if (firstElement['message'] === 'not part of session') {
+                        showGenericModal('Unauthenticated', 'You are not yet a registered participant of this session. Please rejoin the session.', () => {
+                            window.location.href = '/login?session=' + sessionName;
+                        });
+                    } else if (firstElement['message'] === 'unknown user') {
+                        showGenericModal('Unauthenticated', 'The user you are trying to join the session as does not yet exist. Please rejoin the session.', () => {
+                            window.location.href = '/login?session=' + sessionName;
+                        });
+                    } else if (firstElement['message'] === 'unknown session') {
+                        showGenericModal('Session not found', 'The session you are trying to join does not exist.', () => {
+                            window.location.href = '/login';
+                        });
+                    }
+                    return;
+                }
+            }
+            if (!isInitialized) {
+                isInitialized = true;
+                initializeProperly();
+            }
+            try {
+                updateParticipantsList(data);
+            } catch (e) {
+                console.error(e);
+            }
+        }, err => {
+            window.location.href = '/login?session=' + sessionName;
+        });
+    }
+
+    let currentUserList = [];
+
+    function updateParticipantsList(users) {
+        preprocessUsers(users);
+        console.log('Updating participants list', users);
+        const userTableEntries = users
+            .filter(user => isManagerAccordingToLocalStorage || !user.sessionState.isSpectator)
+            .map(user => createUserTableEntry(user));
+        userTableElement.innerHTML = '';
+        userTableEntries.forEach(userTableEntry => userTableElement.appendChild(userTableEntry));
+
+        currentUserList = users;
+
+        const amountNonSpectatorUsers = users.filter(user => !user.sessionState.isSpectator).length;
+        const amountSpectatorUsers = users.filter(user => user.sessionState.isSpectator).length;
+        if (isManagerAccordingToLocalStorage) {
+            participantCountSpan.innerText = amountNonSpectatorUsers + (amountSpectatorUsers > 0 ? ' + ' + amountSpectatorUsers : '') + ' Participant' + (amountNonSpectatorUsers + amountSpectatorUsers === 1 ? '' : 's');
+        } else {
+            participantCountSpan.innerText = amountNonSpectatorUsers + ' Participant' + (amountNonSpectatorUsers === 1 ? '' : 's');
+        }
+
+        if (isManagerAccordingToLocalStorage) {
+            const emojiStatistics = {};
+            users.forEach(user => {
+                if (user.sessionState.emotion) {
+                    if (!emojiStatistics[user.sessionState.emotion.name]) {
+                        emojiStatistics[user.sessionState.emotion.name] = 0;
+                    }
+                    emojiStatistics[user.sessionState.emotion.name]++;
+                }
+            });
+            updateEmojiGrid(emojiStatistics);
+        }
+    }
+
+    function preprocessUsers(users) {
+        users.forEach(user => {
+            // {"referenceUserId":"259686f5-480b-4a9e-9d0d-8da3ff9a91db","sessionState":"{\"isSpectator\":false,\"emotion\":{\"emoji\":\"❌\",\"name\":\"CROSS\",\"wellFormedName\":\"Cross\"},\"emotionChangedTime\":\"2023-11-11T01:35:00.009+01:00\"}","userColor":"#66cc7c","superuser":true,"username":"dev"}]
+            if (user.sessionState) {
+                user.sessionState = JSON.parse(user.sessionState);
+                if (!user.sessionState.emotion) {
+                    user.sessionState.emotion = {
+                        emoji: '⚡',
+                        name: 'UNDEFINED',
+                        wellFormedName: 'Undefined'
+                    };
+                }
+                if (!user.sessionState.emotionChangedTime) {
+                    user.sessionState.emotionChangedTime = new Date().getTime();
+                } else {
+                    user.sessionState.emotionChangedTime = new Date(user.sessionState.emotionChangedTime).getTime();
+                }
+                if (!user.sessionState.raisedHandTime) {
+                    user.sessionState.raisedHandTime = null;
+                } else {
+                    user.sessionState.raisedHandTime = new Date(user.sessionState.raisedHandTime).getTime();
+                }
+                if (!user.sessionState.isSpectator) {
+                    user.sessionState.isSpectator = false;
+                }
+            } else {
+                user.sessionState = {
+                    isSpectator: false,
+                    emotion: {
+                        emoji: '⚡',
+                        name: 'UNDEFINED',
+                        wellFormedName: 'Undefined'
+                    },
+                    emotionChangedTime: new Date().getTime()
+                };
+            }
+        });
+
+        users.sort((a, b) => {
+            if (a.sessionState.raisedHandTime && b.sessionState.raisedHandTime) {
+                return a.sessionState.raisedHandTime - b.sessionState.raisedHandTime;
+            } else if (a.sessionState.raisedHandTime) {
+                return -1;
+            } else if (b.sessionState.raisedHandTime) {
+                return 1;
+            } else {
+                return 0;
+            }
+        });
+
+        let currentHandIndex = 1;
+        users.forEach(user => {
+            if (user.sessionState.raisedHandTime && !user.sessionState.isSpectator) {
+                user.raisedHandIndex = currentHandIndex++;
+            } else {
+                user.raisedHandIndex = -1;
+            }
+        });
+
+        users.sort((a, b) => {
+            if (a.superuser && !b.superuser) {
+                return -1;
+            } else if (!a.superuser && b.superuser) {
+                return 1;
+            } else if (a.sessionState.raisedHandTime && b.sessionState.raisedHandTime) {
+                return a.sessionState.raisedHandTime - b.sessionState.raisedHandTime;
+            } else if (a.sessionState.raisedHandTime) {
+                return -1;
+            } else if (b.sessionState.raisedHandTime) {
+                return 1;
+            } else {
+                return b.sessionState.emotionChangedTime - a.sessionState.emotionChangedTime;
+            }
+        });
+
+        return users;
+    }
+
+    function createUserTableEntry(user) {
+        const li = document.createElement('li');
+        li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
+        if (user.superuser) {
+            li.classList.add('list-group-item-secondary');
+        } else if (user.sessionState.isSpectator) {
+            li.classList.add('list-group-item-info');
+        }
+        li.innerHTML = `
+<div>
+    <span><span class="user-table-emoji-container update-timestamp"
+                data-bs-toggle="tooltip" data-bs-placement="right" title="Just now"
+                data-update-timestamp="${user.sessionState.emotionChangedTime}" data-update-timestamp-target="attribute-title">
+        ${user.sessionState.emotion.emoji}
+    </span></span>
+    <span class="fw-bold user-table-username-container">${user.sessionState.isSpectator ? 'Spectator ' : ''}${user.username}</span>
+    <span class="raised-hand-container"></span>
+</div>
+` + (isManagerAccordingToLocalStorage && referenceUserId !== user.referenceUserId ? `
+<div>
+    <i class="bi bi-envelope text-muted me-1 clickable send-single-message-button"></i>
+    <i class="bi bi-arrows-move text-muted me-1 clickable move-user-to-other-session"></i>
+    <i class="bi bi-x-circle text-danger clickable remove-user-button"></i>
+</div>
+` : '');
+
+        const tooltip = li.querySelector('.update-timestamp');
+        if (tooltip) {
+            updateTimestamp(tooltip);
+            li.addEventListener('mouseenter', function (event) {
+                updateTimestamp(tooltip);
+            });
+        }
+
+        if (user.userColor) {
+            li.querySelector('.user-table-username-container').style.color = user.userColor;
+        }
+
+        if (user.raisedHandIndex && user.raisedHandIndex > 0) {
+            const raisedHandContainer = li.querySelector('.raised-hand-container');
+            // ✋ <i class="bi bi-X-circle-fill user-table-hand-raised"></i>
+            raisedHandContainer.appendChild(document.createTextNode('✋ '));
+            if (user.raisedHandIndex > 9) {
+                raisedHandContainer.appendChild(document.createTextNode(' (' + user.raisedHandIndex + ')'));
+            } else {
+                const raisedHandIcon = document.createElement('i');
+                raisedHandIcon.classList.add('bi', 'bi-' + user.raisedHandIndex + '-circle-fill', 'user-table-hand-raised');
+                raisedHandContainer.appendChild(raisedHandIcon);
+            }
+
+            if (isManagerAccordingToLocalStorage) {
+                raisedHandContainer.classList.add('clickable');
+                raisedHandContainer.addEventListener('click', function (event) {
+                    wsRemoveHandRaisedFromUser(user.referenceUserId);
+                });
+            }
+        }
+
+        const removeUserButton = li.querySelector('.remove-user-button');
+        if (removeUserButton) {
+            removeUserButton.addEventListener('click', function (event) {
+                const reason = prompt('Please enter a reason for removing this user from the session or leave empty to cancel.');
+                if (reason) {
+                    wsRemoveUserFromSession(user.referenceUserId, reason);
+                }
+            });
+        }
+
+        const sendMessageButton = li.querySelector('.send-single-message-button');
+        if (sendMessageButton) {
+            sendMessageButton.addEventListener('click', function (event) {
+                const message = prompt('Please enter a message to send to this user or leave empty to cancel.');
+                if (message) {
+                    wsSendMessageToSingleUser(user.referenceUserId, message);
+                }
+            });
+        }
+
+        const moveUserToOtherSessionButton = li.querySelector('.move-user-to-other-session');
+        if (moveUserToOtherSessionButton) {
+            moveUserToOtherSessionButton.addEventListener('click', function (event) {
+                doPost('/api/session/list', {
+                    userId: userId,
+                }, data => {
+                    const sessions = data.filter(session => session.name !== sessionName);
+                    if (sessions.length === 0) {
+                        showGenericModal('No other sessions', 'There are no other sessions to move this user to.');
+                        return;
+                    }
+
+                    const modal = document.createElement('div');
+                    modal.classList.add('modal', 'fade');
+                    modal.setAttribute('tabindex', '-1');
+                    modal.setAttribute('aria-labelledby', 'move-user-to-other-session-modal-title');
+                    modal.setAttribute('aria-hidden', 'true');
+
+                    if (sessions.length < 5) {
+                        modal.innerHTML = `
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="move-user-to-other-session-modal-title">Move user to other session</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body d-flex flex-column align-items-stretch" id="move-user-to-other-session-modal-body">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+`;
+                        document.body.appendChild(modal);
+                        const modalBody = modal.querySelector('#move-user-to-other-session-modal-body');
+
+                        sessions.forEach(session => {
+                            const sessionButton = document.createElement('button');
+                            sessionButton.classList.add('btn', 'btn-primary', 'my-1');
+                            sessionButton.setAttribute('data-session-id', session.id);
+                            sessionButton.innerText = session.name;
+                            sessionButton.addEventListener('click', function(event) {
+                                wsMoveUserToSession(user.referenceUserId, session.id);
+                                const modalInstance = bootstrap.Modal.getInstance(modal);
+                                modalInstance.hide();
+                                modal.remove();
+                            });
+                            modalBody.appendChild(sessionButton);
+                        });
+
+                        const modalInstance = new bootstrap.Modal(modal);
+                        modalInstance.show();
+                    } else {
+                        modal.innerHTML = `
+<div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title" id="move-user-to-other-session-modal-title">Move user to other session</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            <select class="form-select" id="move-user-to-other-session-modal-select">
+                <option value="" selected disabled>Select a session</option>
+            </select>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-primary" id="move-user-to-other-session-modal-button">Move</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+    </div>
+</div>
+`;
+                        document.body.appendChild(modal);
+                        const modalSelect = modal.querySelector('#move-user-to-other-session-modal-select');
+                        const modalButton = modal.querySelector('#move-user-to-other-session-modal-button');
+                        sessions.forEach(session => {
+                            const option = document.createElement('option');
+                            option.value = session.id;
+                            option.innerText = session.name;
+                            modalSelect.appendChild(option);
+                        });
+                        const modalInstance = new bootstrap.Modal(modal);
+                        modalButton.addEventListener('click', function (event) {
+                            const selectedSession = modalSelect.value;
+                            if (selectedSession) {
+                                wsMoveUserToSession(user.referenceUserId, selectedSession);
+                            }
+                            modalInstance.hide();
+                            modal.remove();
+                        });
+                        modalInstance.show();
+                    }
+                }, err => {
+                    showGenericModal('Error', 'Could not fetch list of sessions. Please try again later.')
+                });
+            });
+        }
+
+        return li;
+    }
+
+    function initializeProperly() {
+        console.log('User authenticated, initializing properly');
+
+        const socket = getWebSocket();
+
+        socket.addEventListener('open', function (event) {
+            console.log('Connected to WS Server');
+            socket.send(JSON.stringify({
+                type: 'register',
+                sessionName: sessionName,
+                userId: userId,
+            }));
+        });
+
+        socket.addEventListener('message', function (event) {
+            console.log('Message from server', event.data);
+            const data = JSON.parse(event.data);
+
+            if (data.type) {
+                switch (data.type) {
+                    case 'session-changed':
+                        if (data.participants) {
+                            updateParticipantsList(data.participants);
+                        } else {
+                            console.log('No participants in message', data.type, data)
+                            fetchInitialParticipantsList();
+                        }
+                        break;
+                    case 'session-closed':
+                        showGenericModal('Session closed', 'This room has been closed. Thank you for participating!', () => {
+                            window.location.href = '/login?session=' + sessionName;
+                        });
+                        break;
+                    case 'kicked-from-session':
+                        const message = data.message ? data.message : 'You have been removed from this session.';
+                        showGenericModal('Removed from session', message, () => {
+                            window.location.href = '/login';
+                        });
+                        break;
+                    case 'display-message':
+                        if (data.message) {
+                            createMainAlert('info', data.message);
+                        }
+                        break;
+                    case 'timer-changed':
+                        if (data.timerTargetDate) {
+                            const date = new Date(data.timerTargetDate);
+                            startTimerFromDate(date);
+                        } else {
+                            startTimerFromDate(null);
+                        }
+                        break;
+                    case 'move-to-session':
+                        if (data.targetSessionName) {
+                            if (!localStorage.getItem('transport.userId')) localStorage.setItem('transport.userId', userId);
+                            if (!localStorage.getItem('transport.referenceUserId')) localStorage.setItem('transport.referenceUserId', referenceUserId);
+                            if (!localStorage.getItem('transport.username')) localStorage.setItem('transport.username', username);
+                            if (!localStorage.getItem('transport.userColor')) localStorage.setItem('transport.userColor', userColor);
+
+                            const param = {
+                                userId: userId,
+                                sessionName: data.targetSessionName,
+                                sessionPassword: null,
+                                spectator: false
+                            };
+
+                            doPost('/api/session/join/existing', param, (data2) => {
+                                localStorage.setItem('transport.userId', data2.userId);
+                                localStorage.setItem('transport.referenceUserId', data2.referenceUserId);
+                                localStorage.setItem('transport.username', data2.username);
+                                localStorage.setItem('transport.userColor', data2.userColor);
+                                window.location.href = '/session/' + data.targetSessionName + '?movedby=' + data.movedby + '&movedfrom=' + sessionName;
+                            });
+                        }
+                        break;
+                }
+            }
+        });
+
+        socket.addEventListener('close', function (event) {
+            console.log('Disconnected from WS Server');
+            showGenericModal('Disconnected', 'The connection to the session management software has been lost. Thank you for joining this session.');
+        });
+    }
+
+    function wsSetEmotion(emotionName) {
+        getWebSocket().send(JSON.stringify({
+            type: 'session-state-emotion',
+            emotion: emotionName
+        }));
+    }
+
+    function wsToggleHandRaised() {
+        getWebSocket().send(JSON.stringify({
+            type: 'session-state-toggle-hand'
+        }));
+    }
+
+    function wsRemoveUserFromSession(userReferenceId, reason) {
+        getWebSocket().send(JSON.stringify({
+            type: 'session-manager-remove-user',
+            affectedUserId: userReferenceId,
+            message: reason
+        }));
+    }
+
+    function wsSendMessageToSingleUser(userReferenceId, message) {
+        getWebSocket().send(JSON.stringify({
+            type: 'session-manager-send-message-to-user',
+            affectedUserId: userReferenceId,
+            message: message
+        }));
+    }
+
+    function wsSendMessageToAllUsersInSession(message) {
+        getWebSocket().send(JSON.stringify({
+            type: 'session-manager-send-message-to-all-users-in-session',
+            message: message
+        }));
+    }
+
+    function wsMoveUserToSession(userReferenceId, session) {
+        getWebSocket().send(JSON.stringify({
+            type: 'session-manager-move-user-to-session',
+            affectedUserId: userReferenceId,
+            targetSessionId: session
+        }));
+    }
+
+    function wsRemoveHandRaisedFromUser(userReferenceId) {
+        getWebSocket().send(JSON.stringify({
+            type: 'session-manager-remove-hand-raised-from-user',
+            affectedUserId: userReferenceId
+        }));
+    }
+
+    function wsSetTimer(countToDate) {
+        getWebSocket().send(JSON.stringify({
+            type: 'session-manager-set-timer',
+            countToDate: countToDate.toISOString()
+        }));
+    }
+
+    function updateTimestamp(element) {
+        const timestamp = element.getAttribute('data-update-timestamp');
+        if (timestamp) {
+            const date = new Date(parseInt(timestamp));
+            element.setAttribute('title', date.toLocaleString());
+            const diff = fromNow(date);
+            const target = element.getAttribute('data-update-timestamp-target') || 'innerText';
+            if (target === 'innerText') {
+                element.innerText = diff;
+            } else if (target === 'attribute-title') {
+                element.setAttribute('title', diff);
+                updateBsTooltips([element]);
+            }
+        }
+    }
+
+    function updateTimestamps(element = undefined) {
+        const elements = (element || document).querySelectorAll('[data-update-timestamp]');
+        elements.forEach(element => updateTimestamp(element));
+    }
+
+    function createMainAlert(type, message) {
+        const container = document.getElementById('main-alerts-container');
+        const alert = document.createElement('div');
+        alert.classList.add('alert', 'alert-' + type, 'alert-dismissible', 'fade', 'show', 'mb-3');
+        alert.setAttribute('role', 'alert');
+        alert.style.position = 'relative';
+
+        const timestamp = document.createElement('span');
+        timestamp.classList.add('update-timestamp', 'badge', 'me-2');
+        timestamp.setAttribute('data-update-timestamp', new Date().getTime());
+        timestamp.setAttribute('data-update-timestamp-target', 'attribute-title');
+        timestamp.setAttribute('data-bs-toggle', 'tooltip');
+        timestamp.setAttribute('data-bs-placement', 'bottom');
+        timestamp.innerText = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        timestamp.style.position = 'absolute';
+        timestamp.style.top = '-10px';
+        timestamp.style.left = '-10px';
+        timestamp.style.backgroundColor = 'white';
+        timestamp.style.color = 'black';
+        timestamp.style.border = '1px dashed #0000005f';
+        updateTimestamp(timestamp);
+        console.log(timestamp);
+        alert.appendChild(timestamp);
+
+        if (message instanceof HTMLElement) {
+            alert.appendChild(message);
+        } else {
+            alert.appendChild(document.createTextNode(message));
+        }
+
+        const button = document.createElement('button');
+        button.classList.add('btn-close');
+        button.setAttribute('type', 'button');
+        button.setAttribute('data-bs-dismiss', 'alert');
+        button.setAttribute('aria-label', 'Close');
+        alert.appendChild(button);
+        container.appendChild(alert);
+
+        container.addEventListener('mouseenter', function (event) {
+            updateTimestamps(container);
+        });
+    }
+
+    let timerCountDownTo = null;
+
+    if (initialTimerValue) {
+        try {
+            startTimerFromDate(new Date(initialTimerValue));
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function convertInputTimeToDate(time) { // time is 'HH:mm:ss', convert to Date by adding to current time
+        const date = new Date();
+        const parts = time.split(':');
+        if (parts.length !== 3) {
+            alert('Invalid time format, required format is HH:mm:ss but got ' + time);
+            return null;
+        }
+        date.setHours(date.getHours() + parseInt(parts[0]));
+        date.setMinutes(date.getMinutes() + parseInt(parts[1]));
+        date.setSeconds(date.getSeconds() + parseInt(parts[2]));
+        return date;
+    }
+
+    function startTimerFromDate(date) {
+        timerCountDownTo = date;
+        updateTimer();
+    }
+
+    function setTimerValue(remainingTime) {
+        if (remainingTime < 0) remainingTime = 0;
+        if (remainingTime === 0) {
+            timerElement.innerText = '';
+        } else {
+            const hours = Math.floor(remainingTime / 1000 / 60 / 60);
+            const minutes = Math.floor(remainingTime / 1000 / 60) % 60;
+            const seconds = Math.floor(remainingTime / 1000) % 60;
+            timerElement.innerText = (hours > 0 ? hours + ':' : '') + (minutes > 0 ? minutes + ':' : '') + (seconds < 10 ? '0' : '') + seconds;
+
+            timerElement.classList.remove('text-danger');
+            timerElement.classList.remove('text-warning');
+            if (hours === 0 && minutes === 0) {
+                timerElement.classList.add(seconds % 2 === 0 ? 'text-danger' : 'text-warning');
+                timerElement.classList.remove('text-muted');
+            } else {
+                timerElement.classList.add('text-muted');
+            }
+        }
+    }
+
+    function updateTimer() {
+        if (timerCountDownTo) {
+            const remainingTime = timerCountDownTo.getTime() - new Date().getTime();
+            if (remainingTime > 0) {
+                setTimerValue(remainingTime);
+            } else {
+                setTimerValue(0);
+                timerCountDownTo = null;
+            }
+        }
+    }
+
+    setInterval(updateTimer, 1000);
+</script>
+</body>
+</html>
