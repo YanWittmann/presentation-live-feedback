@@ -1,7 +1,4 @@
-const apiMode = 'dev';
-const apiBaseUrl = apiMode === 'dev'
-    ? 'http://localhost:8082'
-    : '';
+const apiBaseUrl = '';
 
 function doPost(url, param, callback = data => {
 }, failure = err => {

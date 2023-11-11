@@ -6,6 +6,7 @@ import de.yanwittmann.presentation.service.SessionService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +22,9 @@ public class PageController {
     @Autowired
     private SessionService sessionService;
 
+    @Value("${application.version}")
+    private String appVersion;
+
     @GetMapping("/session/{sessionId}")
     public String showPageWithVariable(@PathVariable String sessionId, Model model) {
         try {
@@ -32,6 +36,7 @@ public class PageController {
             model.addAttribute("sessionId", sessionId);
             model.addAttribute("availableEmoticons", Emotion.ALL_EMOTIONS.toString());
             model.addAttribute("initialTimerValue", session.getTimerTargetDate());
+            model.addAttribute("appVersion", appVersion);
         } catch (Exception e) {
             LOG.error("Invalid session id [{}]", sessionId, e);
             return "login";
@@ -44,8 +49,14 @@ public class PageController {
         return "login";
     }
 
+    @GetMapping("/")
+    public String showLoginPageFallback() {
+        return "login";
+    }
+
     @GetMapping("/manager")
-    public String showManagerPage() {
+    public String showManagerPage(Model model) {
+        model.addAttribute("appVersion", appVersion);
         return "manager";
     }
 }

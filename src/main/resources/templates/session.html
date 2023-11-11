@@ -87,6 +87,8 @@
 </head>
 <body>
 
+<div th:text="'v' + ${appVersion}" class="position-absolute bottom-0 end-0 text-muted me-4 mb-3">v2.0.0</div>
+
 <div class="container mt-4">
     <h3 class="mb-3 fw-bold ms-2" th:text="${sessionId}" id="session-name-container">Session</h3>
 
@@ -708,7 +710,7 @@
                                 localStorage.setItem('transport.referenceUserId', data2.referenceUserId);
                                 localStorage.setItem('transport.username', data2.username);
                                 localStorage.setItem('transport.userColor', data2.userColor);
-                                window.location.href = '/session/' + data.targetSessionName + '?movedby=' + username + '&movedfrom=' + sessionName;
+                                window.location.href = '/session/' + data.targetSessionName + '?movedby=' + data.movedby + '&movedfrom=' + sessionName;
                             });
                         }
                         break;

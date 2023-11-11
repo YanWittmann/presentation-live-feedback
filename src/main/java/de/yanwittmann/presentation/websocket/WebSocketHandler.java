@@ -266,13 +266,11 @@ public class WebSocketHandler extends TextWebSocketHandler {
                     affectedUser.sendToWebSocketChannelsBySession(session, new JSONObject()
                             .put("type", "move-to-session")
                             .put("targetSessionName", targetSession.getName())
+                            .put("movedby", participant.getUsername())
                     );
 
                     affectedUser.leaveSession(session);
                     session.removeParticipant(affectedUser);
-
-                    final SessionParticipant affectedUser2 = userService.findUserByReferenceId(UUID.fromString(affectedUserId));
-                    System.out.println(affectedUser2);
                 }
 
                 UserService.sessionChanged(session);
