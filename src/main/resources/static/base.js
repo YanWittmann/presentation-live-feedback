@@ -127,6 +127,19 @@ function updateBsTooltips(elements = null) {
     });
 }
 
+function unregisterBsTooltips(elements) {
+    if (elements instanceof HTMLCollection) {
+        elements = Array.from(elements);
+    }
+    elements.forEach((tooltipTriggerEl) => {
+        if (tooltipsMap.has(tooltipTriggerEl)) {
+            const existingTooltip = tooltipsMap.get(tooltipTriggerEl);
+            existingTooltip.dispose();
+            tooltipsMap.delete(tooltipTriggerEl);
+        }
+    });
+}
+
 function determineWebSocketUrl() {
     const protocol = (window.location.protocol === 'https:') ? 'wss://' : 'ws://';
     const host = window.location.hostname;

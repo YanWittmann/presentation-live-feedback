@@ -21,20 +21,29 @@
           crossorigin="anonymous">
 
     <style>
-        .clickable {
+        .clickable, .app-version {
             cursor: pointer;
+            text-decoration: none;
         }
 
-        .clickable.text-muted:hover {
+        .clickable.text-muted:hover, .app-version:hover {
             text-decoration: underline;
         }
     </style>
 </head>
 <body>
 
+<a th:text="'v' + ${appVersion}" class="position-absolute bottom-0 end-0 text-muted me-4 mb-3 app-version"
+   href="https://github.com/YanWittmann/presentation-live-feedback" target="_blank">v2.0.1</a>
+
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container-fluid">
         <a class="navbar-brand" href="#">Presentation Live Feedback</a>
+        <div class="d-flex">
+            <a class="fs-3 me-2 text-muted" href="https://github.com/YanWittmann/presentation-live-feedback"
+               target="_blank" rel="noopener noreferrer">
+                <i class="bi bi-github"></i>
+            </a>
     </div>
 </nav>
 
@@ -54,7 +63,7 @@
                             <label for="sessionName" class="form-label">Session Name</label>
                             <input type="text" class="form-control" id="sessionName" required>
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3 d-none">
                             <label for="sessionPassword" class="form-label">
                                 Password
                                 <i tabindex="0" class="bi bi-info-circle"
@@ -70,7 +79,9 @@
                         </div>
                         <div class="d-grid gap-2 mx-auto w-75">
                             <button type="submit" class="btn btn-primary" id="join-session-regular">Join</button>
-                            <button type="submit" class="btn btn-outline-secondary" id="join-session-spectator">Join as spectator</button>
+                            <button type="submit" class="btn btn-outline-secondary" id="join-session-spectator">Join as
+                                spectator
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -149,11 +160,13 @@
     }
 
     const parsedUrlParams = parseUrlParameters();
-    if (parsedUrlParams['session']) {
-        sessionName.value = parsedUrlParams['session'];
-    }
     if (parsedUrlParams['password']) {
         sessionPassword.value = parsedUrlParams['password'];
+        setJoinPasswordActive(true);
+    }
+    if (parsedUrlParams['session']) {
+        sessionName.value = parsedUrlParams['session'];
+        checkForPasswordProtection(parsedUrlParams['session']);
     }
     clearUrlParameters(['session', 'password']);
 
@@ -184,6 +197,20 @@
         }
     }
 
+    function setButtonSpinner(buttonElement, showSpinner = true) {
+        if (showSpinner) {
+            buttonElement.setAttribute('disabled', 'true');
+            buttonElement.dataset.originalText = buttonElement.innerText;
+            buttonElement.innerHTML = `
+<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+<span class="visually-hidden">Loading...</span>
+`;
+        } else {
+            buttonElement.removeAttribute('disabled');
+            buttonElement.innerText = buttonElement.dataset.originalText || 'Join';
+        }
+    }
+
     joinSessionForm.addEventListener('submit', (event) => {
         event.preventDefault();
         const displayNameValue = sessionDisplayName.value;
@@ -210,6 +237,8 @@
             spectator: event.submitter.id === 'join-session-spectator'
         };
 
+        setButtonSpinner(event.submitter, true);
+
         doPost('/api/session/join', param, (data) => {
             setInputError(sessionName, false);
             setInputError(sessionPassword, false);
@@ -217,10 +246,12 @@
             localStorage.setItem('transport.referenceUserId', data.referenceUserId);
             localStorage.setItem('transport.username', data.username);
             localStorage.setItem('transport.userColor', data.userColor);
+            setButtonSpinner(event.submitter, false);
             window.location.href = '/session/' + sessionNameValue;
         }, (error) => {
             setInputError(sessionName, true);
             setInputError(sessionPassword, true);
+            setButtonSpinner(event.submitter, false);
         });
     });
 
@@ -238,6 +269,8 @@
             authToken: passwordValue
         };
 
+        setButtonSpinner(event.submitter, true);
+
         doPost('/api/session/manager/validate/login', param, (data) => {
             setInputError(managerPassword, false);
             localStorage.setItem('displayName', data.username);
@@ -246,11 +279,41 @@
             localStorage.setItem('transport.referenceUserId', data.referenceUserId);
             localStorage.setItem('transport.username', data.username);
             localStorage.setItem('transport.userColor', data.userColor);
+            setButtonSpinner(event.submitter, false);
             window.location.href = '/manager';
         }, (error) => {
             setInputError(managerPassword, true);
+            setButtonSpinner(event.submitter, false);
         });
     });
+
+    let sessionNameChangeDebounce = null;
+
+    sessionName.addEventListener('keydown', () => {
+        console.log('keydown', sessionName.value);
+        if (sessionNameChangeDebounce) {
+            clearTimeout(sessionNameChangeDebounce);
+        }
+        sessionNameChangeDebounce = setTimeout(() => {
+            checkForPasswordProtection(sessionName.value);
+        }, 500);
+    });
+
+    function checkForPasswordProtection(sessionName) {
+        doGet('/api/session/' + sessionName + '/password', (data) => {
+            setJoinPasswordActive(data.passwordProtected);
+        }, (error) => {
+            setJoinPasswordActive(true);
+        });
+    }
+
+    function setJoinPasswordActive(active) {
+        if (active) {
+            sessionPassword.parentElement.classList.remove('d-none');
+        } else {
+            sessionPassword.parentElement.classList.add('d-none');
+        }
+    }
 </script>
 
 </body>

@@ -21,22 +21,24 @@
           crossorigin="anonymous">
 
     <style>
-        .clickable {
+        .clickable, .app-version {
             cursor: pointer;
+            text-decoration: none;
         }
 
-        .clickable.text-muted:hover {
+        .clickable.text-muted:hover, .app-version:hover {
             text-decoration: underline;
         }
     </style>
 </head>
 <body>
 
-<div th:text="'v' + ${appVersion}" class="position-absolute bottom-0 end-0 text-muted me-4 mb-3">v2.0.0</div>
+<a th:text="'v' + ${appVersion}" class="position-absolute bottom-0 end-0 text-muted me-4 mb-3 app-version"
+   href="https://github.com/YanWittmann/presentation-live-feedback" target="_blank">v2.0.1</a>
 
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container-fluid">
-        <a class="navbar-brand" href="#">Session Manager</a>
+        <a class="navbar-brand" href="/login">Session Manager</a>
     </div>
 </nav>
 
@@ -116,7 +118,9 @@
 
         socket.addEventListener('close', function (event) {
             console.log('Disconnected from WS Server');
-            showGenericModal('Disconnected', 'The connection to the session management software has been lost. Thank you for joining this session.');
+            setTimeout(() => {
+                showGenericModal('Disconnected', 'The connection to the session management software has been lost. Thank you for joining this session.');
+            }, 1000);
         });
 
         // update every few minutes no matter what
@@ -154,6 +158,7 @@
                 createNewSessionElement.innerHTML = `
 <div class="card">
     <div class="card-header">Create new session</div>
+    <form id="create-session-submit-form">
     <ul class="list-group list-group-flush">
         <li class="list-group-item">
             <input type="text" class="form-control" id="session-name" placeholder="Session name">
@@ -163,11 +168,19 @@
     <div class="card-body">
         <button class="btn btn-success btn-sm" id="session-create-new-session">Create</button>
     </div>
+    </form>
 </div>`;
                 sessionListElement.appendChild(createNewSessionElement);
 
                 const createSessionButton = document.getElementById('session-create-new-session');
-                createSessionButton.addEventListener('click', () => {
+                const createSessionForm = document.getElementById('create-session-submit-form');
+                createSessionForm.addEventListener('submit', (event) => {
+                    event.preventDefault();
+                    createSessionWithData();
+                });
+
+                function createSessionWithData() {
+                    console.log('Creating session', createSessionButton)
                     const sessionName = document.getElementById('session-name').value;
                     let sessionPassword = document.getElementById('session-password').value;
                     sessionPassword = sessionPassword.length === 0 ? undefined : sessionPassword;
@@ -186,10 +199,14 @@
                     createSession(sessionName, sessionPassword, () => {
                         createSessionButton.removeAttribute('disabled');
                         createSessionButton.innerText = 'Create';
+                    }, data => {
                         document.getElementById('session-name').value = '';
                         document.getElementById('session-password').value = '';
+                        setInputError(document.getElementById('session-name'), false);
+                    }, err => {
+                        setInputError(document.getElementById('session-name'), true);
                     });
-                });
+                }
             }
 
             for (const session of sessionInstances) {
@@ -284,6 +301,7 @@
                 const joinButton = document.createElement('a');
                 joinButton.classList.add('btn', 'btn-sm', 'btn-primary', 'me-2');
                 joinButton.innerText = 'Join';
+                joinButton.target = '_blank';
                 joinButton.href = sessionUrlDirect.toString();
                 cardBodyElement.appendChild(joinButton);
 
@@ -310,10 +328,8 @@
                             userId: userId,
                             sessionId: session.id,
                         }, data => {
-                            console.log(data);
                             updateSessions(data);
                         }, err => {
-                            console.log(err);
                             deleteButton.removeAttribute('disabled');
                             deleteButton.innerText = 'Close';
                         });
@@ -329,6 +345,23 @@
             }
 
             updateBsTooltips();
+        }
+    }
+
+    function setInputError(inputElement, forceActive = undefined) {
+        if (!inputElement) {
+            return;
+        }
+        if (forceActive !== undefined) {
+            if (forceActive) {
+                inputElement.classList.add('is-invalid');
+            } else {
+                inputElement.classList.remove('is-invalid');
+            }
+        } else if (!inputElement.value || inputElement.value === "") {
+            inputElement.classList.add('is-invalid');
+        } else {
+            inputElement.classList.remove('is-invalid');
         }
     }
 
@@ -360,6 +393,8 @@
     }
 
     function createSession(name, password, anyCaseCallback = () => {
+    }, successCaseCallback = () => {
+    }, errorCaseCallback = () => {
     }) {
         doPost('/api/session/create', {
             userId: userId,
@@ -369,12 +404,18 @@
             console.log(data);
             updateSessions(data);
             if (anyCaseCallback !== undefined) {
-                anyCaseCallback(err);
+                anyCaseCallback(data);
+            }
+            if (successCaseCallback !== undefined) {
+                successCaseCallback(data);
             }
         }, err => {
             console.log(err);
             if (anyCaseCallback !== undefined) {
                 anyCaseCallback(err);
+            }
+            if (errorCaseCallback !== undefined) {
+                errorCaseCallback(err);
             }
         });
     }

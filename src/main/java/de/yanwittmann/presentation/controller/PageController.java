@@ -45,7 +45,8 @@ public class PageController {
     }
 
     @GetMapping("/login")
-    public String showLoginPage() {
+    public String showLoginPage(Model model) {
+        model.addAttribute("appVersion", appVersion);
         return "login";
     }
 

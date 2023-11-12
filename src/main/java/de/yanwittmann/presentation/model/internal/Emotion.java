@@ -13,11 +13,10 @@ import java.util.stream.Collectors;
 public enum Emotion {
     SMILE("\uD83D\uDE42"), PARTY("\uD83E\uDD73"),
     SLOWER("\uD83D\uDC22"), FASTER("\uD83D\uDC07"),
-    QUESTION_MARK("❓"),
-    BREAK("☕"),
-    CHECKMARK("✔"), CROSS("❌"),
-    ONE("1️⃣"), TWO("2️⃣"), THREE("3️⃣"), FOUR("4️⃣"), FIVE("5️⃣"),
-    //SIX("6️⃣"), SEVEN("7️⃣"), EIGHT("8️⃣"), NINE("9️⃣"),
+    QUESTION_MARK("\u2753"),
+    BREAK("\u2615"),
+    CHECKMARK("\u2714"), CROSS("\u274C"),
+    ONE("\u0031\u20E3"), TWO("\u0032\u20E3"), THREE("\u0033\u20E3"), FOUR("\u0034\u20E3"), FIVE("\u0035\u20E3"),
     ;
 
     private final String emoji;

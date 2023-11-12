@@ -28,10 +28,6 @@
             text-align: center;
         }
 
-        .clickable {
-            cursor: pointer;
-        }
-
         .user-table-hand-raised {
             color: #c000af;
         }
@@ -72,7 +68,6 @@
             color: #751b00;
         }
 
-        /* add to first child with class 'alert' */
         #main-alerts-container > .alert:first-child {
             padding-top: 0.5rem;
         }
@@ -83,11 +78,21 @@
             z-index: 1000;
             font-family: monospace;
         }
+
+        .clickable, .app-version {
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .clickable.text-muted:hover, .app-version:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
 
-<div th:text="'v' + ${appVersion}" class="position-absolute bottom-0 end-0 text-muted me-4 mb-3">v2.0.0</div>
+<a th:text="'v' + ${appVersion}" class="position-absolute bottom-0 end-0 text-muted me-4 mb-3 app-version"
+   href="https://github.com/YanWittmann/presentation-live-feedback" target="_blank">v2.0.1</a>
 
 <div class="container mt-4">
     <h3 class="mb-3 fw-bold ms-2" th:text="${sessionId}" id="session-name-container">Session</h3>
@@ -121,7 +126,7 @@
         </span>
         <span class="fs-1 ms-2 clickable d-none only-for-session-managers" id="remove-raised-hand-from-all-users"
               data-bs-toggle="tooltip" data-bs-placement="bottom" title="Remove raised hand from all users">
-            🫳
+            👇
         </span>
         <span class="fs-1 ms-2 clickable d-none only-for-session-managers" id="set-timer"
               data-bs-toggle="tooltip" data-bs-placement="bottom" title="Set timer">
@@ -170,6 +175,7 @@
     const emojiGridContainer = document.getElementById('emoji-grid');
 
     function updateEmojiGrid(statistics = {}) {
+        unregisterBsTooltips(emojiGridContainer.children);
         emojiGridContainer.innerHTML = '';
 
         availableEmoticons.forEach(emoticon => {
@@ -187,6 +193,8 @@
             emojiButton.addEventListener('click', function (event) {
                 wsSetEmotion(emoticon.name);
             });
+
+            updateBsTooltips([emojiButton]);
         });
     }
 
@@ -223,7 +231,7 @@
     const setTimerButton = document.getElementById('set-timer');
     if (setTimerButton) {
         setTimerButton.addEventListener('click', function (event) {
-            const time = prompt('Enter a duration in HH:mm:ss format or leave empty to cancel.');
+            const time = prompt('Enter a duration in HH:mm:ss / mm:ss / ss format or leave empty to cancel.');
             if (time) {
                 const date = convertInputTimeToDate(time);
                 if (date === null) {
@@ -239,7 +247,7 @@
 
 <script>
     if (!localStorage.getItem('transport.userId') || !localStorage.getItem('transport.username') || !localStorage.getItem('transport.userColor')) {
-        // window.location.href = '/login?session=' + sessionName;
+        window.location.href = '/login?session=' + sessionName;
     }
 
     const userTableElement = document.getElementById('user-table');
@@ -579,7 +587,7 @@
                             sessionButton.classList.add('btn', 'btn-primary', 'my-1');
                             sessionButton.setAttribute('data-session-id', session.id);
                             sessionButton.innerText = session.name;
-                            sessionButton.addEventListener('click', function(event) {
+                            sessionButton.addEventListener('click', function (event) {
                                 wsMoveUserToSession(user.referenceUserId, session.id);
                                 const modalInstance = bootstrap.Modal.getInstance(modal);
                                 modalInstance.hide();
@@ -856,16 +864,26 @@
         }
     }
 
-    function convertInputTimeToDate(time) { // time is 'HH:mm:ss', convert to Date by adding to current time
+    function convertInputTimeToDate(time) {
         const date = new Date();
         const parts = time.split(':');
-        if (parts.length !== 3) {
+        if (parts.length > 3) {
             alert('Invalid time format, required format is HH:mm:ss but got ' + time);
             return null;
         }
-        date.setHours(date.getHours() + parseInt(parts[0]));
-        date.setMinutes(date.getMinutes() + parseInt(parts[1]));
-        date.setSeconds(date.getSeconds() + parseInt(parts[2]));
+        if (parts.length === 1 && parts[0].length === 0) {
+            alert('Invalid time format, required format is HH:mm:ss but got ' + time);
+            return null;
+        }
+        if (parts.length > 0) {
+            date.setSeconds(date.getSeconds() + parseInt(parts[parts.length - 1]));
+        }
+        if (parts.length > 1) {
+            date.setMinutes(date.getMinutes() + parseInt(parts[parts.length - 2]));
+        }
+        if (parts.length > 2) {
+            date.setHours(date.getHours() + parseInt(parts[parts.length - 3]));
+        }
         return date;
     }
 
@@ -891,6 +909,10 @@
                 timerElement.classList.remove('text-muted');
             } else {
                 timerElement.classList.add('text-muted');
+            }
+
+            if (seconds === 0 && minutes === 0 && hours === 0) {
+                createMainAlert('warning', 'The timer has run out!');
             }
         }
     }

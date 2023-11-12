@@ -10,6 +10,7 @@ import de.yanwittmann.presentation.service.SessionService;
 import de.yanwittmann.presentation.service.UserService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -178,6 +179,15 @@ public class SessionController {
     public List<OutFullSession> listSessions(@RequestBody InUserId userIf) {
         getSuperuser(userIf, "list sessions");
         return sessionService.getOutSessions();
+    }
+
+    @GetMapping("/{sessionName}/password")
+    public String isSessionPasswordProtected(@PathVariable String sessionName) {
+        final Session session = sessionService.findSessionByName(sessionName);
+        if (session == null) {
+            return new JSONObject().put("passwordProtected", false).toString();
+        }
+        return new JSONObject().put("passwordProtected", session.getPassword() != null).toString();
     }
 
     private void notifySessionChanged(Session session) {
